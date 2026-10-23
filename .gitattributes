@@ -9,3 +9,5 @@
 *.js text eol=lf
 *.ps1 text eol=crlf
 /artifacts/** -text
+/artifacts/**/SHA256SUMS text eol=lf
+.gitattributes text eol=lf
