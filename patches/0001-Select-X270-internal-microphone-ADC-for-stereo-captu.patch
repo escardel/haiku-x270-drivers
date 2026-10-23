@@ -1,0 +1,34 @@
+From 15929e791a023f109cd965fbc947f0db459f3d29 Mon Sep 17 00:00:00 2001
+From: eric <escardel@outlook.com>
+Date: Thu, 22 Oct 2026 16:52:38 -0700
+Subject: [PATCH] Select X270 internal microphone ADC for stereo capture
+
+---
+ src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp b/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
+index b15a677..94ab47f 100644
+--- a/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
++++ b/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
+@@ -1450,6 +1450,17 @@ hda_audio_group_get_widgets(hda_audio_group* audioGroup, hda_stream* stream)
+ 			|| widget.d.io.formats == 0)
+ 			continue;
+ 
++		// On the X270's ALC298, ADC 8 receives the external microphone and
++		// ADC 9 receives the fixed internal microphone. Both converters would
++		// otherwise be assigned channel 0 of the same two-channel stream.
++		// Select the internal microphone converter for this capture path.
++		if (stream->type == STREAM_RECORD
++			&& audioGroup->codec->vendor_id == 0x10ec
++			&& audioGroup->codec->product_id == 0x0298
++			&& audioGroup->codec->subsystem_id == 0x17aa5062
++			&& widget.node_id == 8)
++			continue;
++
+ 		if (count == 0) {
+ 			stream->sample_format = widget.d.io.formats;
+ 			stream->sample_rate = widget.d.io.rates;
+-- 
+2.42.0.windows.1
+

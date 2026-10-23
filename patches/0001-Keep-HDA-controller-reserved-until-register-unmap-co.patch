@@ -1,0 +1,54 @@
+From f943506b1bb171c976034b6ba5bddb80d730a69e Mon Sep 17 00:00:00 2001
+From: eric <escardel@outlook.com>
+Date: Thu, 22 Oct 2026 16:45:57 -0700
+Subject: [PATCH] Keep HDA controller reserved until register unmap completes
+
+---
+ src/add-ons/kernel/drivers/audio/hda/device.cpp | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/add-ons/kernel/drivers/audio/hda/device.cpp b/src/add-ons/kernel/drivers/audio/hda/device.cpp
+index d0217bf..618ddac 100644
+--- a/src/add-ons/kernel/drivers/audio/hda/device.cpp
++++ b/src/add-ons/kernel/drivers/audio/hda/device.cpp
+@@ -25,14 +25,17 @@ hda_open(const char* name, uint32 flags, void** cookie)
+ 	if (controller == NULL)
+ 		return ENODEV;
+ 
+-	if (atomic_get(&controller->opened) != 0)
++	// Reserve the controller before initialization. The old open check was
++	// separate from the increment, and close released it before free finished
++	// unmapping the registers. A second open could then race either operation.
++	if (atomic_test_and_set(&controller->opened, 1, 0) != 0)
+ 		return B_BUSY;
+ 
+ 	status_t status = hda_hw_init(controller);
+-	if (status != B_OK)
++	if (status != B_OK) {
++		atomic_set(&controller->opened, 0);
+ 		return status;
+-
+-	atomic_add(&controller->opened, 1);
++	}
+ 
+ 	*cookie = controller;
+ 
+@@ -75,7 +78,6 @@ hda_close(void* cookie)
+ {
+ 	hda_controller* controller = (hda_controller*)cookie;
+ 	hda_hw_stop(controller);
+-	atomic_add(&controller->opened, -1);
+ 
+ 	return B_OK;
+ }
+@@ -86,6 +88,7 @@ hda_free(void* cookie)
+ {
+ 	hda_controller* controller = (hda_controller*)cookie;
+ 	hda_hw_uninit(controller);
++	atomic_set(&controller->opened, 0);
+ 
+ 	return B_OK;
+ }
+-- 
+2.42.0.windows.1
+

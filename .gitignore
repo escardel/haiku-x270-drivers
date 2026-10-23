@@ -1,0 +1,10 @@
+/haiku-upstream/
+/haiku-uvc-webcam/
+/haiku-x270-trackpoint-touchpad/
+/recovery-logs/
+/*.raw
+/*.wav
+/*.png
+/*.rgb32
+/syslog-*.txt
+/RecorderWindow.cpp
