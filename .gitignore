@@ -29,3 +29,5 @@
 /bluetooth/*.ddc
 /bluetooth/revise-loader.py
 /bluetooth/WHENCE-reference
+/bluetooth/scratch/
+/dist/
