@@ -1,0 +1,212 @@
+From b7ed43bcd286ccca4d6e1ac74be53f2e689a842d Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 22:23:09 -0700
+Subject: [PATCH] Route-TrackPoint-buttons-through-guest-mouse-packets
+
+---
+ .../bus_managers/ps2/ps2_standard_mouse.cpp   | 17 +++-
+ .../kernel/bus_managers/ps2/ps2_synaptics.cpp | 81 +++++++++++++++----
+ .../kernel/bus_managers/ps2/ps2_synaptics.h   |  2 +
+ 3 files changed, 80 insertions(+), 20 deletions(-)
+
+diff --git a/src/add-ons/kernel/bus_managers/ps2/ps2_standard_mouse.cpp b/src/add-ons/kernel/bus_managers/ps2/ps2_standard_mouse.cpp
+index 1485685a88..588973b756 100644
+--- a/src/add-ons/kernel/bus_managers/ps2/ps2_standard_mouse.cpp
++++ b/src/add-ons/kernel/bus_managers/ps2/ps2_standard_mouse.cpp
+@@ -188,23 +188,34 @@ standard_mouse_read_event(standard_mouse_cookie* cookie,
+ 	if (!(packet[0] & 8))
+ 		panic("ps2: got broken data from packet_buffer_read\n");
+ 
++	uint32 previousButtons = cookie->buttons_state;
+ 	ps2_packet_to_movement(cookie, packet, movement);
+ 	if (cookie->dev->parent_dev != NULL) {
+ 		static uint32 reads = 0;
+ 		static uint32 motions = 0;
++		static uint32 heldMotions = 0;
+ 		static bigtime_t lastReport = 0;
+ 		reads++;
+ 		bool motion = movement->xdelta != 0 || movement->ydelta != 0;
+ 		if (motion)
+ 			motions++;
++		bool changed = previousButtons != movement->buttons;
++		if (changed)
++			heldMotions = 0;
++		bool heldMotion = motion && movement->buttons != 0;
++		if (heldMotion)
++			heldMotions++;
+ 		bigtime_t now = system_time();
+-		if (reads <= 4 || (motion && motions <= 8)
++		if (reads <= 4 || changed || (heldMotion && heldMotions <= 8)
++			|| (motion && motions <= 8)
+ 			|| now - lastReport >= 5000000) {
+ 			lastReport = now;
+ 			INFO("X270_MOUSE_READ: reads=%lu motions=%lu dx=%ld dy=%ld "
+-				"buttons=%lx\n", (unsigned long)reads, (unsigned long)motions,
++				"buttons=%lx clicks=%ld packet=%02x previous=%lx\n",
++				(unsigned long)reads, (unsigned long)motions,
+ 				(long)movement->xdelta, (long)movement->ydelta,
+-				(unsigned long)movement->buttons);
++				(unsigned long)movement->buttons, (long)movement->clicks,
++				packet[0], (unsigned long)previousButtons);
+ 		}
+ 	}
+ 	return B_OK;
+diff --git a/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.cpp b/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.cpp
+index 1bd9122c0b..0908c74028 100644
+--- a/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.cpp
++++ b/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.cpp
+@@ -83,6 +83,7 @@ typedef struct {
+ 	bool capAdvancedGestures : 1;
+ 	bool capExtendedWMode : 1;
+ 	bool capClickPadUniform : 1;
++	bool capTrackpointButtons : 1;
+ 	int  capClickPadButtonCount : 2;
+ } touchpad_info;
+ 
+@@ -99,6 +100,32 @@ static touchpad_info sTouchpadInfo;
+ static ps2_dev *sPassthroughDevice = &ps2_device[PS2_DEVICE_SYN_PASSTHROUGH];
+ 
+ 
++// Called only from the parent interrupt handler, so button changes and guest
++// movement enter the child queue in hardware order.
++static int32
++forward_trackpoint_packet(synaptics_cookie* cookie, uint8 header, uint8 x,
++	uint8 y, uint8 fourth)
++{
++	if (!sPassthroughDevice->active
++		|| (atomic_get(&sPassthroughDevice->flags) & PS2_FLAG_ENABLED) == 0
++		|| sPassthroughDevice->handle_int == NULL
++		|| (sPassthroughDevice->packet_size != 3
++			&& sPassthroughDevice->packet_size != 4)) {
++		return B_HANDLED_INTERRUPT;
++	}
++
++	if (sTouchpadInfo.capTrackpointButtons)
++		header |= cookie->trackpoint_buttons;
++	uint8 packet[4] = {header, x, y, fourth};
++	int32 result = B_HANDLED_INTERRUPT;
++	for (uint32 i = 0; i < sPassthroughDevice->packet_size; i++) {
++		sPassthroughDevice->history[0].data = packet[i];
++		result = sPassthroughDevice->handle_int(sPassthroughDevice);
++	}
++	return result;
++}
++
++
+ static status_t
+ send_touchpad_arg_timeout(ps2_dev *dev, uint8 arg, bigtime_t timeout)
+ {
+@@ -319,8 +346,9 @@ get_synaptics_movment(synaptics_cookie *cookie, touchpad_movement *_event, bigti
+ 			// Secondary finger packets do not update the physical switch.
+ 			if (sTouchpadInfo.capClickPadButtonCount == 1)
+ 				event.buttons = (event.buttons & ~1) | cookie->clickpad_button;
+-			event.buttons |= sTouchpadInfo.extendedButtonsState
+-				<< sTouchpadInfo.firstExtendedButton;
++			if (!sTouchpadInfo.capTrackpointButtons)
++				event.buttons |= sTouchpadInfo.extendedButtonsState
++					<< sTouchpadInfo.firstExtendedButton;
+ 			*_event = event;
+ 
+ 			return status;
+@@ -334,7 +362,8 @@ get_synaptics_movment(synaptics_cookie *cookie, touchpad_movement *_event, bigti
+ 		} else if (sTouchpadInfo.capMiddleButton || sTouchpadInfo.capFourButtons)
+ 			event.buttons |= ((event_buffer[0] ^ event_buffer[3]) & 0x01) << 2;
+ 
+-		if (sTouchpadInfo.nExtendedButtons > 0) {
++		if (sTouchpadInfo.nExtendedButtons > 0
++			&& !sTouchpadInfo.capTrackpointButtons) {
+ 			if (((event_buffer[0] ^ event_buffer[3]) & 0x02) != 0) {
+ 				// This packet includes extended buttons state. The state is
+ 				// only reported once when one of the buttons is pressed or
+@@ -401,6 +430,7 @@ query_capability(ps2_dev *dev)
+ {
+ 	uint8 val[3];
+ 	uint8 nExtendedQueries = 0;
++	sTouchpadInfo.capTrackpointButtons = false;
+ 
+ 	get_information_query(dev, nExtendedQueries, kReadCapabilities, val);
+ 
+@@ -486,8 +516,11 @@ query_capability(ps2_dev *dev)
+ 	// used as buttons for the trackpoint, so they should be reported
+ 	// as buttons 0, 1, 2 rather than 3, 4, 5.
+ 	TRACE("SYNAPTICS: alternate buttons %2x\n", val[0] >> 0 & 1);
+-	if (val[0] >> 0 & 1)
++	if (val[0] >> 0 & 1) {
+ 		sTouchpadInfo.firstExtendedButton = 0;
++		sTouchpadInfo.capTrackpointButtons = sTouchpadInfo.capPassThrough
++			&& sTouchpadInfo.nExtendedButtons == 3;
++	}
+ }
+ 
+ 
+@@ -977,19 +1010,33 @@ synaptics_handle_int(ps2_dev *dev)
+ 			}
+ 
+ 			forwarded++;
+-			status_t status;
+-			sPassthroughDevice->history[0].data = cookie->buffer[1];
+-			sPassthroughDevice->handle_int(sPassthroughDevice);
+-			sPassthroughDevice->history[0].data = cookie->buffer[4];
+-			sPassthroughDevice->handle_int(sPassthroughDevice);
+-			sPassthroughDevice->history[0].data = cookie->buffer[5];
+-			status = sPassthroughDevice->handle_int(sPassthroughDevice);
+-
+-			if (sPassthroughDevice->packet_size == 4) {
+-				sPassthroughDevice->history[0].data = cookie->buffer[2];
+-				status = sPassthroughDevice->handle_int(sPassthroughDevice);
++			cookie->trackpoint_guest_buttons = cookie->buffer[1] & 7;
++			return forward_trackpoint_packet(cookie, cookie->buffer[1],
++				cookie->buffer[4], cookie->buffer[5], cookie->buffer[2]);
++		}
++
++		int32 buttonStatus = B_HANDLED_INTERRUPT;
++		if (sTouchpadInfo.capTrackpointButtons) {
++			const uint8* packet = cookie->buffer;
++			uint8 w = ((packet[3] >> 2) & 1) | ((packet[0] >> 1) & 2)
++				| ((packet[0] >> 2) & 12);
++			// Firmware 8.1/8.2 reports these buttons only when ExtBit is
++			// set. Secondary-finger packets are not button reports.
++			if (w != 2 && ((packet[0] ^ packet[3]) & 2) != 0) {
++				uint8 buttons = (packet[4] & 1) | ((packet[5] & 1) << 1)
++					| ((packet[4] & 2) << 1);
++				if (buttons != cookie->trackpoint_buttons) {
++					cookie->trackpoint_buttons = buttons;
++					// A stationary press/release must also reach the child;
++					// waiting for motion loses clicks and leaves releases stuck.
++					buttonStatus = forward_trackpoint_packet(cookie,
++						8 | cookie->trackpoint_guest_buttons, 0, 0, 0);
++					static uint32 changes = 0;
++					if (++changes <= 128)
++						INFO("X270_STICK_BUTTON: buttons=%u routed=%ld\n",
++							buttons, (long)buttonStatus);
++				}
+ 			}
+-			return status;
+ 		}
+ 
+ 		if (packet_buffer_write(cookie->synaptics_ring_buffer,
+@@ -997,7 +1044,7 @@ synaptics_handle_int(ps2_dev *dev)
+ 			!= cookie->dev->packet_size) {
+ 			// buffer is full, drop new data
+ 			queueDrops++;
+-			return B_HANDLED_INTERRUPT;
++			return buttonStatus;
+ 		}
+ 		release_sem_etc(cookie->synaptics_sem, 1, B_DO_NOT_RESCHEDULE);
+ 
+diff --git a/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.h b/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.h
+index d95f914c3b..f654dac19f 100644
+--- a/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.h
++++ b/src/add-ons/kernel/bus_managers/ps2/ps2_synaptics.h
+@@ -56,6 +56,8 @@ struct packet_buffer*	synaptics_ring_buffer;
+ 	uint8				buffer[PS2_PACKET_SYNAPTICS];
+ 	uint8				mode;
+ 	uint8				clickpad_button;
++	uint8				trackpoint_buttons;
++	uint8				trackpoint_guest_buttons;
+ } synaptics_cookie;
+ 
+ 
+-- 
+2.56.0
+

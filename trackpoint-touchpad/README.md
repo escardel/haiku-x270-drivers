@@ -1,25 +1,29 @@
-# ThinkPad X270 TrackPoint and touchpad support for Haiku
+# ThinkPad X270 TrackPoint and touchpad on Haiku
 
-TrackPoint and touchpad section of the combined X270 driver checkpoint.
+The custom PS/2 bus manager now preserves physical TrackPoint button state during movement. It was built and reboot-tested on Haiku `hrev59866+92` x86_64. The user confirmed Tracker icon dragging, normal clicks, and right-clicks work correctly.
 
-## Current state
+## Cause and fix
 
-The X270's existing PS/2 edits have been exported as [patches/x270-ps2-working.patch](patches/x270-ps2-working.patch). They are the uncommitted working-tree diff from `/boot/home/haiku` on branch `x270-hda-mic`; the diff is unchanged from the earlier standalone repository snapshot based on commit `78dbf767662993f34e503dc3907ac0a5923c49ef`. The patch contains clickpad behavior changes and extensive diagnostics. It has **not** been independently built or validated from this repository.
+The physical TrackPoint buttons are wired to the Synaptics touchpad. The old driver emitted button presses from the touchpad device, while TrackPoint movement packets reported no pressed buttons. A controlled comparison showed 32 TrackPoint movement messages losing the left-button state during one drag; the USB mouse kept that state on all 72 movement messages in its comparison drag.
 
-Next, separate the functional changes from diagnostics, build the PS/2 module, and document hardware results. Preserve the machine's existing checkout and unrelated changes while doing so.
+The fix uses the device's stick-button capability to route those buttons through the TrackPoint guest mouse queue. A stationary press or release generates a zero-motion packet; every later guest movement retains the held state. This also keeps click counting in the standard PS/2 mouse path and avoids duplicating the buttons through the touchpad gesture path. Firmware 8.2 reports without a valid extended-button flag and secondary-finger reports do not clear the state.
 
-## Hardware and development target
+The source comparison and event measurements are in [validation/RESULTS.md](validation/RESULTS.md). The temporary pointer tracer was removed after testing.
 
-- Lenovo ThinkPad X270
-- Haiku R1 beta6, hrev59866+92, x86_64 (last observed)
-- Haiku source checkout: `/boot/home/haiku`
+## Source patches and build
 
-## Recovery checklist
+Apply `patches/x270-ps2-working.patch` first to the Haiku source base documented in the root README, and commit that baseline before applying `patches/0002-route-trackpoint-buttons.patch` with `git am`.
 
-1. Review the exported PS/2 patch against its exact base commit.
-2. Split functional fixes and diagnostic logging into reviewable commits.
-3. Build and test on the X270; record exact results here.
+On the target, the original PS/2 work is commit `e9dacb5c0f`; the drag fix is `b7ed43bcd2` on branch `x270-ps2-drag`. The source checkout is `/boot/home/haiku`.
 
-No driver behavior is claimed as verified by this repository yet.
+```sh
+LIBRARY_PATH=/boot/system/lib:/boot/system/develop/lib jam -j2 ps2
+```
 
-See [RESEARCH.md](RESEARCH.md) for upstream source findings and the next hardware checks.
+This library path is required by the build's host metadata tools on this machine. The normal compile, link, MIME, version, and permission steps all succeeded. The deployed 77,251-byte module is included in the root `artifacts/` directory.
+
+## Recovery
+
+The installed module is `/boot/home/config/non-packaged/add-ons/kernel/bus_managers/ps2`. The previous custom module is preserved at `/boot/home/x270-camera-mic/backups/ps2-before-drag-fix`; restoring it and rebooting rolls back this drag fix. Removing the override returns to packaged Haiku behavior.
+
+[RESEARCH.md](RESEARCH.md) preserves the earlier investigation notes. Other pointing-device models and hardware configurations have not been tested.
