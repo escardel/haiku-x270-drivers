@@ -22,3 +22,9 @@
 /undefined-stock.txt
 /ps2-investigation/
 /camera-investigation/
+/bluetooth/reference-h2/
+/bluetooth/*-reference.c
+/bluetooth/*-reference.h
+/bluetooth/*.sfi
+/bluetooth/*.ddc
+/bluetooth/revise-loader.py

@@ -151,3 +151,10 @@
 - Published diagnostic sources include playback/default-output probes, graph inspection, sampled video hashes, and a local WebRTC loopback page. Its isolated-profile preferences must not be installed in the normal browser profile. Preference backups and actual audio/video captures remain only on the target.
 - The 640x480 WebRTC loopback passed with changing frames and audio; the following 1280x720 attempt stalled. High-resolution reopen behavior and long-term USB resilience remain unverified.
 - Next requested investigation: Bluetooth, beginning with USB device 8087:0032 (Intel AX210 Bluetooth).
+
+## 2026-10-22 — AX210 Bluetooth bootstrap investigation
+
+- Identified Intel AX210 USB Bluetooth 8087:0032. Packaged h2generic publishes /dev/bluetooth/h2/h2generic/0; starting bluetooth_server reports one device, but normal HCI commands fail.
+- USB Kit Intel Read Version (fc05, parameter ff) succeeded. TLVs: CNVI/CNVR 00400410, Bluetooth platform/variant 00173700, image type 1 (bootloader), secure boot engine 1 (ECDSA). Standard Read Local Version returned status 01 (unknown command). This directly establishes missing operational firmware, not a missing USB ID.
+- Downloaded signed ibt-0041-0041.sfi (713524 bytes) and DDC (9 bytes) from kernel-firmware/linux-firmware. Wrote and compiled a narrow USB Kit bootstrap tool; validated headers, hardware match, aligned command stream, and boot address 00100800 before attempting upload.
+- Initial concurrent USB Kit event readers blocked firmware writes: usb_raw serializes all transfers with a device-wide mutex. The attempted process did not terminate cleanly after kill; SSH/media remain responsive. Revised loader to sequential writes/reads. No kernel driver or boot configuration changed. Saving checkpoint before a target-only recovery reboot.
