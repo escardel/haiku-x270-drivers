@@ -51,8 +51,9 @@ static void receive(void*, bigtime_t, void* data, size_t size,
 int main(int argc, char** argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
-    if (argc != 3 || (strcmp(argv[1], "video") && strcmp(argv[1], "audio"))) {
-        fprintf(stderr, "usage: %s video|audio output.raw\n", argv[0]);
+    if ((argc != 3 && argc != 4)
+        || (strcmp(argv[1], "video") && strcmp(argv[1], "audio"))) {
+        fprintf(stderr, "usage: %s video|audio output.raw [seconds]\n", argv[0]);
         return 1;
     }
     bool video = !strcmp(argv[1], "video");
@@ -123,7 +124,8 @@ int main(int argc, char** argv)
         recorderInput.node.node);
     status_t producerStart = roster->StartNode(node, 0);
     printf("Start producer=%ld node=%ld\n", producerStart, node.node);
-    if (st == B_OK) snooze(video ? 10000000 : 5000000);
+    if (st == B_OK) snooze((argc == 4 ? atoi(argv[3])
+        : video ? 10 : 5) * 1000000LL);
     recorder.Stop();
     recorder.Disconnect();
     roster->ReleaseNode(node);
