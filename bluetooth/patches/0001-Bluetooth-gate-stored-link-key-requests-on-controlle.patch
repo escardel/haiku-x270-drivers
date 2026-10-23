@@ -1,0 +1,74 @@
+From 99ccfe1a45f0f8f361c04b0548e365be159d1fea Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 23:00:12 -0700
+Subject: [PATCH] 
+ Bluetooth:-gate-stored-link-key-requests-on-controller-support
+
+---
+ src/kits/bluetooth/LocalDevice.cpp        | 19 ++++++++++++++-----
+ src/servers/bluetooth/LocalDeviceImpl.cpp |  3 +++
+ 2 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/kits/bluetooth/LocalDevice.cpp b/src/kits/bluetooth/LocalDevice.cpp
+index ea6b39e85e..5dbb5e051b 100644
+--- a/src/kits/bluetooth/LocalDevice.cpp
++++ b/src/kits/bluetooth/LocalDevice.cpp
+@@ -439,8 +439,14 @@ LocalDevice::_ReadLocalSupportedCommands()
+ 	request.AddInt16("opcodeExpected", PACK_OPCODE(OGF_INFORMATIONAL_PARAM,
+ 		OCF_READ_LOCAL_SUPPORTED_COMMANDS));
+ 
+-	if (fMessenger->SendMessage(&request, &reply) == B_OK)
++	if (fMessenger->SendMessage(&request, &reply) == B_OK) {
+ 		reply.FindUInt8("status", &bt_status);
++		bool supported = false;
++		if (bt_status == BT_OK
++			&& (reply.FindBool("read_stored_link_key_supported", &supported) != B_OK
++				|| !supported))
++			return B_NOT_SUPPORTED;
++	}
+ 
+ 	return bt_status;
+ }
+@@ -502,8 +508,10 @@ LocalDevice::_ReadLinkKeys()
+ {
+ 	uint8 bt_status = BT_ERROR;
+ 
+-	BluetoothCommand<> LocalFeatures(OGF_CONTROL_BASEBAND,
+-		OCF_READ_STORED_LINK_KEY);
++	BluetoothCommand<typed_command(hci_read_stored_link_key)>
++		LocalFeatures(OGF_CONTROL_BASEBAND, OCF_READ_STORED_LINK_KEY);
++	memset(LocalFeatures->bdaddr.b, 0, sizeof(LocalFeatures->bdaddr.b));
++	LocalFeatures->all_keys_flag = 1;
+ 
+ 	BMessage request(BT_MSG_HANDLE_SIMPLE_REQUEST);
+ 	BMessage reply;
+@@ -597,9 +605,10 @@ LocalDevice::LocalDevice(hci_id hid)
+ 	_ReadBufferSize();
+ 	_ReadLocalFeatures();
+ 	_ReadLocalVersion();
+-	_ReadLocalSupportedCommands();
++	status_t storedLinkKeySupport = _ReadLocalSupportedCommands();
+ 	_ReadTimeouts();
+-	_ReadLinkKeys();
++	if (storedLinkKeySupport == BT_OK)
++		_ReadLinkKeys();
+ 
+ 	// Uncomment this if you want your device to have a nicer default name
+ 	// BString name("HaikuBluetooth");
+diff --git a/src/servers/bluetooth/LocalDeviceImpl.cpp b/src/servers/bluetooth/LocalDeviceImpl.cpp
+index 79e0c55cff..06799a1de7 100644
+--- a/src/servers/bluetooth/LocalDeviceImpl.cpp
++++ b/src/servers/bluetooth/LocalDeviceImpl.cpp
+@@ -653,6 +653,9 @@ LocalDeviceImpl::CommandComplete(struct hci_ev_cmd_complete* event,
+ 				supported_commands->status);
+ 
+ 			reply.AddUInt8("status", supported_commands->status);
++			reply.AddBool("read_stored_link_key_supported",
++				supported_commands->status == BT_OK
++					&& (supported_commands->supported_commands[6] & 0x20) != 0);
+ 			status = request->SendReply(&reply);
+ 			// printf("Sending reply... %d\n", status);
+ 			// debug reply.PrintToStream();
+-- 
+2.56.0
+

@@ -28,3 +28,4 @@
 /bluetooth/*.sfi
 /bluetooth/*.ddc
 /bluetooth/revise-loader.py
+/bluetooth/WHENCE-reference
