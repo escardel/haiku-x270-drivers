@@ -7,11 +7,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_set>
 
 static FILE* sFile;
 static int sFrames;
 static size_t sBytes;
 static int sUniformFrames;
+static std::unordered_set<unsigned long long> sVideoHashes;
+static unsigned long long sLastHash;
+static unsigned sRepeatedFrames;
 
 class ProbeRecorder : public BMediaRecorder {
 public:
@@ -45,6 +49,13 @@ static void receive(void*, bigtime_t, void* data, size_t size,
             if (bytes[i] != bytes[0]) { uniform = false; break; }
         }
         sUniformFrames += uniform;
+        unsigned long long hash=1469598103934665603ULL;
+        for(size_t i=0;i<size;i+=64) { hash^=bytes[i]; hash*=1099511628211ULL; }
+        if(sFrames>0 && hash==sLastHash) ++sRepeatedFrames;
+        sVideoHashes.insert(hash); sLastHash=hash;
+        if(sFrames<3 || sFrames%100==0)
+            printf("video_frame=%d hash=%llx unique=%lu repeats=%u\n",sFrames,
+                hash,sVideoHashes.size(),sRepeatedFrames);
     }
     ++sFrames;
 }
@@ -135,5 +146,7 @@ int main(int argc, char** argv)
     fclose(sFile);
     printf("frames=%d uniform_frames=%d bytes=%lu\n", sFrames,
         sUniformFrames, sBytes);
+    if(video) printf("unique_video_frames=%lu consecutive_repeats=%u\n",
+        sVideoHashes.size(),sRepeatedFrames);
     return sFrames ? 0 : 9;
 }

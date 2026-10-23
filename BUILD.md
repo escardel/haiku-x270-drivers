@@ -45,3 +45,11 @@ X270_RECORDER_ONLY=1 ./media_capture audio test-audio.raw 3
 The final post-reboot runs returned 71 audio buffers and 57 nonuniform video frames. `media_connections` reported zero remaining input connections after stop. Browser tests are preserved in the HTML files, and the pointer tests and human confirmation are documented under `trackpoint-touchpad/validation`.
 
 Installation paths and rollback instructions are in the root README. Keep the packaged originals and existing backups available before deploying to another build.
+
+## Configuration diagnostics
+
+Compile `media_graph.cpp`, `media_output_setup.cpp`, and `audio_playback_probe.cpp` individually with `g++ -o TOOL TOOL.cpp -lbe -lmedia`. The graph probe is read-only; output setup selects the existing HD Audio consumer as default. Back up `/boot/home/config/settings/Media/MDefaultManager` before changing it.
+
+After selecting the output, stop `x-vnd.haiku-media_server` using `launch_roster stop`, gracefully quit the actual `media_addon_server` PID with `hey -o PID quit`, then start `x-vnd.haiku-media_server` using `launch_roster start`. Check the graph for a connected mixer and advancing HDA clock afterward.
+
+The Firefox identity repair is profile-specific. Exit Firefox before running it; it preserves the first backup and removes only `general.useragent.override`. Normal session restoration remains enabled. Capture permission bypass preferences are confined to the separate diagnostic profile.

@@ -43,3 +43,11 @@ To roll back the Media Kit library, remove `/boot/system/non-packaged/lib/libmed
 - The browser recording is non-silent and time-varying, but its acoustic content has not been heard by a person. An earlier native capture detected a 1 kHz tone played over the laptop speaker.
 
 Upstream code and binaries retain their original licenses; see `licenses/`.
+
+## Playback and Google Meet configuration
+
+The user confirmed playback and Google Meet work after two configuration repairs: select HD Audio as the default Media Kit output, and remove a Firefox user-agent override impersonating Chrome on Windows. These repairs changed configuration, not driver binaries. Backups remain on the X270.
+
+A local 640x480 WebRTC loopback encoded/sent 190 video frames, decoded 189, and received 598 audio packets / 574,080 samples over twelve seconds. All twelve sampled camera snapshots differed. A subsequent 1280x720 attempt stalled; that mode is not validated.
+
+`media_graph.cpp`, `media_output_setup.cpp`, and `audio_playback_probe.cpp` diagnose the audio graph and output selection. `restore_firefox_identity.py` targets this X270's specific profile and should run only after Firefox exits. `firefox-loopback-user.js` belongs only to an isolated diagnostic profile. The localhost test server does not require external network access.

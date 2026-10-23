@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8"><title>X270 simultaneous WebRTC test</title>
+<style>body{font:16px sans-serif;margin:24px}video{width:320px;background:#222}pre{white-space:pre-wrap}</style>
+<h1>X270 simultaneous camera and microphone test</h1>
+<video id="local" autoplay muted playsinline></video><video id="remote" autoplay muted playsinline></video><pre id="out"></pre>
+<script>
+const output=document.getElementById('out');
+function log(s){output.textContent+=s+'\n';fetch('/log?m='+encodeURIComponent(s)).catch(()=>{});}
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function trial(width,height){
+  let stream,context,pc1,pc2;
+  try{
+    log('trial '+width+'x'+height);
+    const devices=await navigator.mediaDevices.enumerateDevices();
+    log('devices '+JSON.stringify(devices.map(d=>({kind:d.kind,label:d.label,deviceId:d.deviceId}))));
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:width},height:{ideal:height},frameRate:{ideal:30}},audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+    for(const track of stream.getTracks()) log('opened '+track.kind+' '+JSON.stringify(track.getSettings()));
+    const local=document.getElementById('local'),remote=document.getElementById('remote');
+    local.srcObject=stream;
+    let frames=0,alive=true;
+    const onframe=()=>{frames++;if(alive)local.requestVideoFrameCallback(onframe);};
+    local.requestVideoFrameCallback(onframe);
+    pc1=new RTCPeerConnection({iceServers:[]});pc2=new RTCPeerConnection({iceServers:[]});
+    const received=new MediaStream();remote.srcObject=received;
+    pc2.ontrack=e=>{received.addTrack(e.track);log('remote track '+e.track.kind);};
+    pc1.onicecandidate=e=>{if(e.candidate)pc2.addIceCandidate(e.candidate).catch(e=>log('ICE2 '+e));};
+    pc2.onicecandidate=e=>{if(e.candidate)pc1.addIceCandidate(e.candidate).catch(e=>log('ICE1 '+e));};
+    stream.getTracks().forEach(t=>pc1.addTrack(t,stream));
+    await pc1.setLocalDescription(await pc1.createOffer());
+    await pc2.setRemoteDescription(pc1.localDescription);
+    await pc2.setLocalDescription(await pc2.createAnswer());
+    await pc1.setRemoteDescription(pc2.localDescription);
+    const canvas=document.createElement('canvas');canvas.width=80;canvas.height=60;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}),hashes=new Set();
+    context=new AudioContext();await context.resume();
+    const source=context.createMediaStreamSource(stream),analyser=context.createAnalyser(),mute=context.createGain();
+    analyser.fftSize=2048;mute.gain.value=0;source.connect(analyser).connect(mute).connect(context.destination);
+    for(let second=1;second<=12;second++){
+      await delay(1000);
+      ctx.drawImage(local,0,0,80,60);const pixels=ctx.getImageData(0,0,80,60).data;
+      let hash=2166136261;for(let i=0;i<pixels.length;i+=4)hash=Math.imul(hash^pixels[i],16777619);hashes.add(hash);
+      const audio=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(audio);
+      let sum=0,sq=0;for(const v of audio){sum+=v;sq+=v*v;}const dc=sum/audio.length;
+      if(second===1 || second%3===0)log(`second=${second} frames=${frames} uniqueImages=${hashes.size} hash=${hash} audioTime=${context.currentTime.toFixed(2)} acRms=${Math.sqrt(Math.max(0,sq/audio.length-dc*dc)).toFixed(6)} peer=${pc1.connectionState}/${pc2.connectionState}`);
+    }
+    const stats=await pc1.getStats();stats.forEach(s=>{if(s.type==='outbound-rtp')log('sent '+JSON.stringify({kind:s.kind,packetsSent:s.packetsSent,bytesSent:s.bytesSent,framesEncoded:s.framesEncoded,framesSent:s.framesSent}));});
+    const receivedStats=await pc2.getStats();receivedStats.forEach(s=>{if(s.type==='inbound-rtp')log('received '+JSON.stringify({kind:s.kind,packetsReceived:s.packetsReceived,bytesReceived:s.bytesReceived,framesDecoded:s.framesDecoded,totalSamplesReceived:s.totalSamplesReceived}));});
+    log(`trial result frames=${frames} uniqueImages=${hashes.size} local=${local.videoWidth}x${local.videoHeight} remote=${remote.videoWidth}x${remote.videoHeight}`);
+    alive=false;local.srcObject=null;remote.srcObject=null;
+  }catch(e){log('ERROR '+e.name+' '+e.message);}
+  finally{
+    if(stream)stream.getTracks().forEach(t=>t.stop());
+    if(pc1)pc1.close();if(pc2)pc2.close();
+    if(context)await Promise.race([context.close(),delay(3000)]);
+    log('trial stopped');await delay(2000);
+  }
+}
+(async()=>{await trial(640,480);await trial(1280,720);log('DONE');})();
+</script>
