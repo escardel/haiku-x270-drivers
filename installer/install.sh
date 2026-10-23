@@ -11,7 +11,9 @@ case "$action" in --install|--uninstall|--verify) ;; *)
     echo 'Usage: bash install.sh --verify | --install | --uninstall'
     echo 'Installation changes system components. Save work first; reboot afterward.'
     exit 0;; esac
-[[ $(uname -s) == Haiku && $(uname -m) == x86_64 && $(uname -v) == *hrev59866+92* ]] || {
+[[ $(uname -s) == Haiku && $(uname -m) == x86_64 ]] || {
+    echo 'Run this installer on Haiku x86_64.'; exit 1; }
+[[ $action == --uninstall || $(uname -v) == *hrev59866+92* ]] || {
     echo 'This build requires Haiku hrev59866+92 x86_64. Rebuild for other revisions.'; exit 1; }
 [[ $HOME == /boot/home ]] || { echo 'This X270 build expects HOME=/boot/home.'; exit 1; }
 sha256sum -c SHA256SUMS

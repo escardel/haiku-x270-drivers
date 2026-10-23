@@ -48,3 +48,9 @@ Firmware SHA-256:
 2e5f11ecc302e10dba51e9e07babef1b6d5c2a2359c695f1a23836552271d906  ibt-0041-0041.sfi
 fe272982577efdc289cfe3e8bedafca607c0b7d6c9df1aab1880e22ef930d077  ibt-0041-0041.ddc
 ```
+
+## Packaged startup validation
+
+The final bounded helper enumerates the generic driver before raw bootstrap, checks adapter readiness, and permits at most one server restart. After installing it and rebooting, readiness passed on attempt 1 and a full inquiry completed successfully with three devices. A separate hard reset to bootloader followed by the final loader also passed the complete upload/boot/DDC/reset path. Warm reboot may preserve operational firmware; a cold power-cycle has not been physically tested.
+
+The separate Bluetooth installer places its helper, firmware, server and probes under `/boot/home/config/non-packaged/data/x270-drivers/bluetooth`; the earlier development path is retained only for source/checkpoints. See [installer instructions](../installer/README.md).

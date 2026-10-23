@@ -1,6 +1,12 @@
 # ThinkPad X270 drivers for Haiku
 
-Combined TrackPoint, touchpad, camera, and microphone development checkpoint for Haiku R1 beta 6, `hrev59866+92`, x86_64 on a Lenovo ThinkPad X270. Camera and microphone measurements are in [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md); [trackpoint-touchpad/README.md](trackpoint-touchpad/README.md) records the PS/2 work and its validation status.
+TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 beta 6, `hrev59866+92`, x86_64 on a Lenovo ThinkPad X270. Measurements and limitations are in [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
+
+## Download installers
+
+[GitHub Releases](https://github.com/escardel/haiku-x270-drivers/releases) contains **four separate installers**: TrackPoint/touchpad, webcam, microphone/audio, and Bluetooth. Each has checksums, backups and uninstall. They reject other Haiku revisions/architectures. See [installation and recovery instructions](installer/README.md).
+
+Bluetooth AX210 (`8087:0032`) now loads signed operational firmware and completes device discovery through Haiku's Bluetooth Kit. Pairing, HID, BLE and Bluetooth audio remain untested. See [Bluetooth implementation and validation](bluetooth/README.md).
 
 The TrackPoint/touchpad directory includes the original five-file PS/2 patch and the subsequent TrackPoint drag fix. The resulting module was built, installed, rebooted, and tested on the X270. The existing standalone input-driver repository is preserved.
 
