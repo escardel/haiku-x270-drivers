@@ -8,3 +8,15 @@
 /*.rgb32
 /syslog-*.txt
 /RecorderWindow.cpp
+/MediaEventLooper-reference.cpp
+/MediaKit-Jamfile.reference
+/MediaRecorder-reference.cpp
+/MediaRecorder-reference.h
+/MediaRoster-reference.h
+/Message-reference.h
+/ParameterWeb-reference.h
+/firefox-158.patchset
+/libmedia-build.log
+/media_addon_server-crash.report
+/undefined-candidate.txt
+/undefined-stock.txt

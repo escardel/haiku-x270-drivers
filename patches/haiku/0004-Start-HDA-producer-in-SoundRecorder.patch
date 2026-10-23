@@ -1,0 +1,43 @@
+From 5d09433fae63191ad30c619575e574df02c68559 Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 17:23:15 -0700
+Subject: [PATCH 4/5] Start-HDA-producer-in-SoundRecorder
+
+---
+ src/apps/soundrecorder/RecorderWindow.cpp | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/apps/soundrecorder/RecorderWindow.cpp b/src/apps/soundrecorder/RecorderWindow.cpp
+index ac41ccaf5b..649a753616 100644
+--- a/src/apps/soundrecorder/RecorderWindow.cpp
++++ b/src/apps/soundrecorder/RecorderWindow.cpp
+@@ -703,7 +703,16 @@ RecorderWindow::Record(BMessage * message)
+ 		fRecEntry.Unset();
+ 		return;
+ 	}
+-	fRecorder->Start();
++	err = fRecorder->Start();
++	if (err == B_OK && (fAudioInputNode.kind & B_TIME_SOURCE) != 0) {
++		// BMediaRecorder starts such a node as a time source, but the
++		// multi_audio producer also needs a node start to deliver buffers.
++		err = fRoster->StartNode(fAudioInputNode, 0);
++	}
++	if (err != B_OK) {
++		ErrorAlert(B_TRANSLATE("Cannot start sound recording"), err);
++		StopRecording();
++	}
+ }
+ 
+ 
+@@ -946,6 +955,8 @@ RecorderWindow::StopRecording()
+ 	err = fRecorder->Stop(true);
+ 	if (err < B_OK)
+ 		return err;
++	if ((fAudioInputNode.kind & B_TIME_SOURCE) != 0)
++		fRoster->StopNode(fAudioInputNode, 0);
+ 
+ 	// We maintain the connection active
+ 	// if the user connected us from Cortex.
+-- 
+2.56.0
+

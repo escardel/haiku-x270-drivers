@@ -1,0 +1,48 @@
+From 8ccb95ad00ad3f395191357f429d912ce1d9387f Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 18:08:03 -0700
+Subject: [PATCH 5/5] Start-and-stop-recorder-time-source-producers
+
+---
+ src/kits/media/MediaRecorder.cpp | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/kits/media/MediaRecorder.cpp b/src/kits/media/MediaRecorder.cpp
+index b4227875a1..0e6a6839a3 100644
+--- a/src/kits/media/MediaRecorder.cpp
++++ b/src/kits/media/MediaRecorder.cpp
+@@ -265,10 +265,13 @@ BMediaRecorder::Start(bool force)
+ 	// start node here
+ 	status_t err = B_OK;
+ 
+-	if ((fOutputNode.kind & B_TIME_SOURCE) != 0)
++	if ((fOutputNode.kind & B_TIME_SOURCE) != 0) {
+ 		err = BMediaRoster::CurrentRoster()->StartTimeSource(
+ 			fOutputNode, BTimeSource::RealTime());
+-	else
++		if (err == B_OK)
++			err = BMediaRoster::CurrentRoster()->StartNode(fOutputNode,
++				fNode->TimeSource()->Now());
++	} else
+ 		err = BMediaRoster::CurrentRoster()->StartNode(
+ 			fOutputNode, fNode->TimeSource()->Now());
+ 
+@@ -302,7 +305,14 @@ BMediaRecorder::Stop(bool force)
+ 
+ 	fRunning = false;
+ 
+-	return BMediaRoster::CurrentRoster()->StopNode(fNode->Node(), 0);
++	status_t err = BMediaRoster::CurrentRoster()->StopNode(fNode->Node(), 0);
++	if ((fOutputNode.kind & B_TIME_SOURCE) != 0) {
++		status_t sourceError = BMediaRoster::CurrentRoster()->StopNode(
++			fOutputNode, 0);
++		if (err == B_OK)
++			err = sourceError;
++	}
++	return err;
+ }
+ 
+ 
+-- 
+2.56.0
+

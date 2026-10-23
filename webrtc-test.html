@@ -1,0 +1,86 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>X270 camera and microphone test</title>
+<style>body{font:16px sans-serif;max-width:900px;margin:20px auto}video{width:480px;height:360px;background:#333}pre{white-space:pre-wrap}</style>
+<h1>X270 camera and microphone test</h1>
+<pre id="result">Starting…</pre>
+<video id="video" autoplay muted playsinline></video>
+<script>
+const lines=[];
+const result=document.getElementById('result');
+let stream;
+let frames=0;
+function log(s){lines.push(`${new Date().toISOString()} ${s}`);result.textContent=lines.join('\n');
+  new Image().src='/log?m='+encodeURIComponent(s)+'&t='+Date.now();}
+function onFrame(){frames++;document.getElementById('video').requestVideoFrameCallback(onFrame);}
+async function run(){
+  log(`secure=${isSecureContext} mediaDevices=${!!navigator.mediaDevices}`);
+  const tests=[['camera',{video:{width:640,height:480},audio:false}],
+      ['microphone',{video:false,audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}]];
+  for(const [name,constraints] of tests.filter(([name])=>
+      !location.search.includes('audioOnly') || name==='microphone')){
+    try {
+      stream=await navigator.mediaDevices.getUserMedia(constraints);
+      const track=stream.getTracks()[0];
+      log(`${name} opened: ${track.label}; settings=${JSON.stringify(track.getSettings())}`);
+      if(name==='camera'){
+        video.srcObject=stream;
+        video.requestVideoFrameCallback(onFrame);
+        await new Promise(resolve=>setTimeout(resolve,5000));
+        const canvas=document.createElement('canvas');
+        canvas.width=160;canvas.height=120;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        ctx.drawImage(video,0,0,160,120);
+        const pixels=ctx.getImageData(0,0,160,120).data;
+        let sum=0,squares=0,min=255,max=0;
+        for(let i=0;i<pixels.length;i+=4){const v=pixels[i];sum+=v;squares+=v*v;min=Math.min(min,v);max=Math.max(max,v);}
+        const n=pixels.length/4;
+        log(`camera at 5s: frames=${frames} pixels min=${min} max=${max} std=${Math.sqrt(squares/n-(sum/n)**2).toFixed(1)}`);
+        await new Promise(resolve=>setTimeout(resolve,10000));
+        log(`camera after 15s: frames=${frames} size=${video.videoWidth}x${video.videoHeight} state=${track.readyState}`);
+        video.srcObject=null;
+      }else{
+        const context=new AudioContext();
+        log(`microphone AudioContext state=${context.state}`);
+        const source=context.createMediaStreamSource(stream);
+        const analyser=context.createAnalyser();
+        analyser.fftSize=4096;
+        source.connect(analyser);
+        const oscillator=context.createOscillator();
+        const gain=context.createGain();
+        gain.gain.value=0.1;
+        oscillator.frequency.value=1000;
+        oscillator.connect(gain).connect(context.destination);
+        await context.resume();
+        await new Promise(resolve=>setTimeout(resolve,1000));
+        const samples=new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(samples);
+        const stats=x=>{let sum=0, squares=0, min=1, max=-1,re=0,im=0;
+          for(let i=0;i<x.length;i++){const phase=2*Math.PI*1000*i/context.sampleRate;
+            re+=x[i]*Math.cos(phase);im+=x[i]*Math.sin(phase);}
+          for(const v of x){sum+=v;squares+=v*v;min=Math.min(min,v);max=Math.max(max,v);}
+          const dc=sum/x.length;
+          return `dc=${dc.toFixed(6)} acRms=${Math.sqrt(Math.max(0,squares/x.length-dc*dc)).toFixed(6)} min=${min.toFixed(6)} max=${max.toFixed(6)} tone1k=${(2*Math.hypot(re,im)/x.length).toFixed(6)}`;};
+        log(`microphone before tone: state=${track.readyState} muted=${track.muted} context=${context.state} ${stats(samples)}`);
+        oscillator.start();
+        await new Promise(resolve=>setTimeout(resolve,1500));
+        analyser.getFloatTimeDomainData(samples);
+        const duringStats=stats(samples);
+        log(`microphone during 1kHz speaker tone: ${duringStats}`);
+        oscillator.stop();
+        await new Promise(resolve=>setTimeout(resolve,1000));
+        analyser.getFloatTimeDomainData(samples);
+        log(`microphone after tone: ${stats(samples)}`);
+        stream.getTracks().forEach(t=>t.stop());
+        source.disconnect();
+        const closing=context.close();
+        await Promise.race([closing,new Promise(resolve=>setTimeout(resolve,3000))]);
+      }
+      stream.getTracks().forEach(t=>t.stop());
+      log(`${name} stopped`);
+    }catch(e){log(`${name} ERROR ${e.name}: ${e.message}`);}
+  }
+  log('done');
+}
+run();
+</script>

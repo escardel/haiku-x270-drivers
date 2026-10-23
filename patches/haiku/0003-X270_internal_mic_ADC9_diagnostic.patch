@@ -1,0 +1,34 @@
+From caaeee136a4ca9f80aee2c1d69eb1e7c7ab23ad6 Mon Sep 17 00:00:00 2001
+From: Codex <codex@local>
+Date: Thu, 22 Oct 2026 16:52:59 -0700
+Subject: [PATCH 3/5] X270_internal_mic_ADC9_diagnostic
+
+---
+ src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp b/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
+index b15a677d7b..94ab47faad 100644
+--- a/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
++++ b/src/add-ons/kernel/drivers/audio/hda/hda_codec.cpp
+@@ -1450,6 +1450,17 @@ hda_audio_group_get_widgets(hda_audio_group* audioGroup, hda_stream* stream)
+ 			|| widget.d.io.formats == 0)
+ 			continue;
+ 
++		// On the X270's ALC298, ADC 8 receives the external microphone and
++		// ADC 9 receives the fixed internal microphone. Both converters would
++		// otherwise be assigned channel 0 of the same two-channel stream.
++		// Select the internal microphone converter for this capture path.
++		if (stream->type == STREAM_RECORD
++			&& audioGroup->codec->vendor_id == 0x10ec
++			&& audioGroup->codec->product_id == 0x0298
++			&& audioGroup->codec->subsystem_id == 0x17aa5062
++			&& widget.node_id == 8)
++			continue;
++
+ 		if (count == 0) {
+ 			stream->sample_format = widget.d.io.formats;
+ 			stream->sample_rate = widget.d.io.rates;
+-- 
+2.56.0
+

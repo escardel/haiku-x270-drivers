@@ -1,0 +1,144 @@
+From bbf32f7816bd7c3135938611abfa2a8bfc5ced13 Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 17:23:06 -0700
+Subject: [PATCH 1/2] X270-UVC-packet-layout-and-direct-alternate
+
+---
+ CamDevice.cpp               | 17 +++++++------
+ Producer.cpp                |  6 ++++-
+ addons/uvc/UVCCamDevice.cpp | 49 +++----------------------------------
+ 3 files changed, 18 insertions(+), 54 deletions(-)
+
+diff --git a/CamDevice.cpp b/CamDevice.cpp
+index c1005cf..3feb635 100644
+--- a/CamDevice.cpp
++++ b/CamDevice.cpp
+@@ -1153,7 +1153,7 @@ CamDevice::DataPumpThread()
+ 		// USB 2.0 HS rate, well below a 30 fps frame interval (~33 ms).
+ 		// A proper fix requires queueing multiple transfers in the kernel.
+ 
+-		const int kMaxPacketDescriptors = 64;  // Array size (max possible)
++		const int kMaxPacketDescriptors = 64;
+ 		const int kMinPacketDescriptors = 2;   // Minimum viable
+ 		usb_iso_packet_descriptor packetDescriptors[kMaxPacketDescriptors];
+ 
+@@ -1209,7 +1209,8 @@ CamDevice::DataPumpThread()
+ 				// The deframer handles incomplete frames with its own validation
+ 
+ 				// Isochronous transfer
+-				len = fIsoIn->IsochronousTransfer(fBuffer, fBufferLen,
++				len = fIsoIn->IsochronousTransfer(fBuffer,
++					packetSize * numPacketDescriptors,
+ 					packetDescriptors, numPacketDescriptors);
+ 			}
+ 			// Lock released here - processing happens unlocked
+@@ -1305,11 +1306,11 @@ CamDevice::DataPumpThread()
+ 				// PHASE 4 FIX: Use fixed packet offsets (not sequential)
+ 				// EHCI places data at packet_index * request_length
+ 
+-				// CRITICAL FIX: EHCI kernel calculates slot size as DataLength/packet_count
+-				// We must ensure: fBufferLen = slotSize * numPacketDescriptors
+-				// So: slotSize = fBufferLen / numPacketDescriptors
+-				// This MUST match request_length if buffer was properly sized
+-				size_t slotSize = fBufferLen / numPacketDescriptors;
++				// The transfer above submits only packetSize * numPacketDescriptors
++				// bytes of the larger allocated buffer. The USB stack lays packet
++				// data out at that submitted length divided by packet count.
++				const size_t transferSize = packetSize * numPacketDescriptors;
++				const size_t slotSize = transferSize / numPacketDescriptors;
+ 
+ 				// Verify alignment and log packet info (first few times)
+ 				static int logCount = 0;
+@@ -1349,7 +1350,7 @@ CamDevice::DataPumpThread()
+ 				int actual_length = packetDescriptors[i].actual_length;
+ 
+ 				// Bounds check
+-				if (actual_length > 0 && packetOffset + actual_length <= fBufferLen) {
++					if (actual_length > 0 && packetOffset + actual_length <= transferSize) {
+ 					fDataInput->Write(&fBuffer[packetOffset], actual_length);
+ 					packetSuccess++;
+ 				}
+diff --git a/Producer.cpp b/Producer.cpp
+index f753a24..f93ff6c 100644
+--- a/Producer.cpp
++++ b/Producer.cpp
+@@ -226,7 +226,11 @@ VideoProducer::NodeRegistered()
+ #ifndef SINGLE_PARAMETER_GROUP
+ 		main = web->MakeGroup("Device");
+ #endif
+-		fCamDevice->AddParameters(main, id);
++		syslog(LOG_INFO, "Producer: before AddParameters\n");
++		// X270 diagnostic: avoid device control transactions during node setup.
++		// This isolates descriptor/control stalls from frame streaming.
++		// fCamDevice->AddParameters(main, id);
++		syslog(LOG_INFO, "Producer: after AddParameters (skipped)\n");
+ 		if (fCamDevice->Sensor()) {
+ #ifndef SINGLE_PARAMETER_GROUP
+ 			main = web->MakeGroup("Sensor");
+diff --git a/addons/uvc/UVCCamDevice.cpp b/addons/uvc/UVCCamDevice.cpp
+index 53c56f4..3d48195 100644
+--- a/addons/uvc/UVCCamDevice.cpp
++++ b/addons/uvc/UVCCamDevice.cpp
+@@ -3542,55 +3542,14 @@ UVCCamDevice::_SelectBestAlternate()
+ 	syslog(LOG_INFO, "UVCCamDevice[%s]: Using alternate %u with endpoint %u (bandwidth %u bytes)\n",
+ 		LogTag(), alternateIndex, endpointIndex, bestBandwidth);
+ 
+-	// WARNING: Haiku's BUSBInterface::SetAlternate() has a bug that causes
+-	// double-free/memory corruption when switching between alternates with
+-	// different endpoint counts. See patches/0001-USBKit-Fix-double-free-in-SetAlternate.patch
+-	//
+-	// The bug is in _UpdateDescriptorAndEndpoints(): it uses the NEW descriptor's
+-	// num_endpoints to delete the OLD endpoint array. When going from 0 endpoints
+-	// (alt 0) to N endpoints (alt N), it tries to delete N elements from an empty array.
+-	//
+-	// WORKAROUND: We must use SetAlternate() because ControlTransfer doesn't work
+-	// for SET_INTERFACE in Haiku (the kernel manages interfaces internally).
+-	// To minimize crash risk, we:
+-	// 1. Only call SetAlternate when absolutely necessary
+-	// 2. Immediately re-fetch all interface/endpoint references after the call
+-	// 3. Never access the old BUSBInterface object after SetAlternate
++	// Use SetAlternate() so USBKit updates its endpoint objects along with the
++	// active interface. Re-fetch the interface afterward: SetAlternate() deletes
++	// the old endpoint objects. Current Haiku deletes them using the old
++	// descriptor's endpoint count, so an intermediate alternate is unnecessary.
+ 	if (fCurrentVideoAlternate != alternateIndex) {
+ 		syslog(LOG_INFO, "UVCCamDevice: Changing alternate from %u to %u\n",
+ 			fCurrentVideoAlternate, alternateIndex);
+ 
+-		const BUSBInterface* oldAlt = streaming->AlternateAt(fCurrentVideoAlternate);
+-		const BUSBInterface* newAlt = streaming->AlternateAt(alternateIndex);
+-		uint32 oldEndpoints = oldAlt ? oldAlt->CountEndpoints() : 0;
+-		uint32 newEndpoints = newAlt ? newAlt->CountEndpoints() : 0;
+-
+-		// WORKAROUND: Haiku's SetAlternate() has a double-free bug when switching
+-		// between alternates with different endpoint counts (e.g., 0→1).
+-		// To reduce crash risk, if going from 0 to N endpoints, first switch to
+-		// an intermediate alternate that has the same endpoint count as the target.
+-		// This avoids the 0→N transition that triggers the bug.
+-		if (oldEndpoints == 0 && newEndpoints > 0) {
+-			// Find an intermediate alternate with >0 endpoints and lower bandwidth
+-			for (uint32 mid = 1; mid < streaming->CountAlternates(); mid++) {
+-				if (mid == alternateIndex)
+-					continue;
+-				const BUSBInterface* midAlt = streaming->AlternateAt(mid);
+-				if (midAlt && midAlt->CountEndpoints() > 0) {
+-					syslog(LOG_INFO, "UVCCamDevice: Using intermediate alternate %u "
+-						"to avoid 0->%u endpoint transition\n", mid, newEndpoints);
+-					((BUSBInterface*)streaming)->SetAlternate(mid);
+-					streaming = config->InterfaceAt(fStreamingIndex);
+-					if (streaming == NULL) {
+-						syslog(LOG_ERR, "UVCCamDevice: Interface lost after "
+-							"intermediate SetAlternate\n");
+-						return B_BAD_INDEX;
+-					}
+-					break;
+-				}
+-			}
+-		}
+-
+ 		status_t setAltResult = ((BUSBInterface*)streaming)->SetAlternate(alternateIndex);
+ 		if (setAltResult != B_OK) {
+ 			syslog(LOG_ERR, "UVCCamDevice: SetAlternate(%u) failed: %s\n",
+-- 
+2.56.0
+

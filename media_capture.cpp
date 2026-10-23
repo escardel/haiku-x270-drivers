@@ -5,6 +5,7 @@
 #include <MediaDefs.h>
 #include <OS.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 static FILE* sFile;
@@ -118,12 +119,14 @@ int main(int argc, char** argv)
     if (st != B_OK) return 8;
     st = recorder.Start();
     printf("Start=%ld\n", st);
-    media_input recorderInput = recorder.MediaInput();
-    status_t consumerStart = roster->StartNode(recorderInput.node, 0);
-    printf("Start consumer=%ld node=%ld\n", consumerStart,
-        recorderInput.node.node);
-    status_t producerStart = roster->StartNode(node, 0);
-    printf("Start producer=%ld node=%ld\n", producerStart, node.node);
+    if (getenv("X270_RECORDER_ONLY") == NULL) {
+        media_input recorderInput = recorder.MediaInput();
+        status_t consumerStart = roster->StartNode(recorderInput.node, 0);
+        printf("Start consumer=%ld node=%ld\n", consumerStart,
+            recorderInput.node.node);
+        status_t producerStart = roster->StartNode(node, 0);
+        printf("Start producer=%ld node=%ld\n", producerStart, node.node);
+    }
     if (st == B_OK) snooze((argc == 4 ? atoi(argv[3])
         : video ? 10 : 5) * 1000000LL);
     recorder.Stop();

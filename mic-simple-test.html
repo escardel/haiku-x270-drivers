@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><pre id="result">Starting</pre>
+<script>
+const lines=[];
+function log(s){lines.push(s);document.getElementById('result').textContent=lines.join('\n');new Image().src='/log?m='+encodeURIComponent(s)+'&t='+Date.now();}
+async function run(){
+  try {
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    log('opened '+stream.getAudioTracks()[0].label);
+    const recorder=new MediaRecorder(stream);
+    const chunks=[];
+    recorder.ondataavailable=e=>{chunks.push(e.data);log('chunk '+e.data.size);};
+    recorder.start();
+    await new Promise(resolve=>setTimeout(resolve,3000));
+    await new Promise(resolve=>{recorder.onstop=resolve;recorder.stop();});
+    const blob=new Blob(chunks);
+    log('recorded bytes='+blob.size);
+    try {
+      const context=new AudioContext();
+      const audio=await context.decodeAudioData(await blob.arrayBuffer());
+      const samples=audio.getChannelData(0);
+      let sum=0,squares=0,min=1,max=-1;
+      for(const v of samples){sum+=v;squares+=v*v;min=Math.min(min,v);max=Math.max(max,v);}
+      const dc=sum/samples.length;
+      log(`decoded duration=${audio.duration.toFixed(3)} rate=${audio.sampleRate} dc=${dc.toFixed(6)} acRms=${Math.sqrt(Math.max(0,squares/samples.length-dc*dc)).toFixed(6)} min=${min.toFixed(6)} max=${max.toFixed(6)}`);
+      context.close();
+    } catch(e) {log('decode ERROR '+e.name+' '+e.message);}
+    stream.getTracks().forEach(t=>t.stop());
+    log('track stopped');
+  } catch(e) {log('ERROR '+e.name+' '+e.message);}
+}
+run();
+</script>

@@ -1,0 +1,32 @@
+From 3bda7e4e43aa807745210ef3dd72d0df05467414 Mon Sep 17 00:00:00 2001
+From: X270-Development <x270-local@invalid>
+Date: Thu, 22 Oct 2026 17:37:34 -0700
+Subject: [PATCH 2/2] Stop-UVC-stream-on-client-disconnect
+
+---
+ Producer.cpp | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/Producer.cpp b/Producer.cpp
+index f93ff6c..0df1da9 100644
+--- a/Producer.cpp
++++ b/Producer.cpp
+@@ -1357,10 +1357,11 @@ VideoProducer::HandleStop(void)
+ 	// cannot spawn a second generator over the orphan.
+ 	fThread = -1;
+ 
+-	if (fCamDevice) {
+-		BAutolock lock(fCamDevice->Locker());
+-		fCamDevice->StopTransferLocked();
+-	}
++	// Use the virtual stop path so UVC devices return the streaming interface
++	// to alternate 0 after the data pump exits. Holding Locker() here bypassed
++	// UVCCamDevice::StopTransfer() and left the camera LED on while idle.
++	if (fCamDevice)
++		fCamDevice->StopTransfer();
+ 
+ 	syslog(LOG_INFO, "Producer: HandleStop COMPLETE\n");
+ }
+-- 
+2.56.0
+

@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><pre id="result">Starting</pre>
+<script>
+function log(s){document.getElementById('result').textContent+='\n'+s;new Image().src='/log?m='+encodeURIComponent(s)+'&t='+Date.now();}
+async function run(){
+  for(let i=1;i<=3;i++) {
+    try {
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      log('request '+i+' opened '+stream.getAudioTracks()[0].label);
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      stream.getTracks().forEach(t=>t.stop());
+      log('request '+i+' stopped');
+      await new Promise(resolve=>setTimeout(resolve,1000));
+    } catch(e) {log('request '+i+' ERROR '+e.name+' '+e.message);}
+  }
+  log('done');
+}
+run();
+</script>
