@@ -1,5 +1,7 @@
 # Offline research and next hardware check
 
+Historical research notes. The subsequent driver build, reboot, and physical drag validation passed; see [README.md](README.md) and [validation/RESULTS.md](validation/RESULTS.md) for the current state.
+
 Recorded 2026-10-22 while the X270 is unreachable. These are leads for testing, not claims about this unit's current input behavior.
 
 ## Existing Haiku implementation

@@ -128,3 +128,8 @@
 - Removed the temporary pointer input filter and confirmed it was unloaded. Its source and before/after pointer-only traces are included under `trackpoint-touchpad`; the successful PS/2 build log is included as well. Target Haiku source is clean on `x270-ps2-drag` at `b7ed43bcd2`.
 - Post-reboot camera capture delivered 57 nonuniform frames in three seconds at 640×480, followed by a successful `SetAlternate(0)` idle transition. A recorder-only microphone test delivered 71 buffers in three seconds, then released its input. The user physically confirmed that the webcam light is off when unused.
 - The combined repository contains the original PS/2 patch, the tested TrackPoint routing patch, five Haiku audio patches, two UVC patches, diagnostic tools, and all six deployed binaries with checksums. Raw microphone recordings and webcam images are excluded from publication. Long-duration USB resilience and human listening review of microphone recordings remain open validation items.
+
+## GitHub checkpoint
+
+- Published the combined private repository at https://github.com/escardel/haiku-x270-drivers on branch `main`. The implementation/validation checkpoint is commit `34a987f`, followed by this publication note. The existing standalone TrackPoint/touchpad repository remains intact.
+- The target's installed code matches the published binaries. Haiku source is committed through `b7ed43bcd2` on `x270-ps2-drag`; UVC source is committed through `3bda7e4` on `x270-camera`. The X270 is online with media services running, no held recording connection, and the temporary input filter unloaded.
