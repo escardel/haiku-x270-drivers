@@ -1,0 +1,10 @@
+PASS: bluetooth ZIP, shell syntax and all packaged checksums
+PASS: microphone ZIP, shell syntax and all packaged checksums
+PASS: trackpoint-touchpad ZIP, shell syntax and all packaged checksums
+PASS: webcam ZIP, shell syntax and all packaged checksums
+PASS: TrackPoint/touchpad payload exactly matches both deployed working binaries
+PASS: native add-on rebuild and all 22 gesture checks
+PASS: gesture patch applies cleanly to the target source baseline (check only)
+PASS: isolated install/uninstall restores the old kernel and removes a newly added mouse override
+PASS: isolated install/uninstall preserves a pre-existing mouse override and rejects changed installed files
+PASS: isolated second-file failure rolls back the already replaced kernel and preserves the failure receipt

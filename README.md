@@ -10,12 +10,15 @@ Bluetooth AX210 (`8087:0032`) now loads signed operational firmware and complete
 
 The TrackPoint/touchpad directory includes the original five-file PS/2 patch and the subsequent TrackPoint drag fix. The resulting module was built, installed, rebooted, and tested on the X270. The existing standalone input-driver repository is preserved.
 
+Release **2026.10.23.1** adds the tested native touchpad gesture add-on to the combined TrackPoint/touchpad installer: one-finger tap-to-click, three-finger tap middle-click, and stable two-finger scrolling through uneven finger lift-off. The working PS/2 module is unchanged. See [gesture source and build instructions](trackpoint-touchpad/gesture-addon/README.md) and [validation](trackpoint-touchpad/validation/TOUCHPAD-GESTURES.md).
+
 ## Verified on the X270
 
 - Built-in SunplusIT camera (`5986:2118`) supplies real 640×480 frames through Media Kit and Firefox. The combined Firefox test delivered 258 video frame callbacks in 15 seconds. The UVC driver selects USB alternate 0 after capture stops; the user confirmed the camera light is off when unused.
 - Internal Realtek ALC298 microphone, via Intel HDA (`8086:9d71`, codec `10ec:0298`, Lenovo subsystem `17aa:5062`), records through ADC 9. Firefox recorded a 3.003-second audio file at 48 kHz with nonzero decoded samples (AC RMS 0.001328). A second capture succeeded and released the Media Kit input afterward.
 - Media services remained running after the combined test. A desktop mixer crash report predates the patched mixer override; no new report appeared during these tests.
 - Physical TrackPoint button dragging in Tracker now works. Before the fix, all 32 held movement messages lost the left-button state; afterward, captured drag sequences preserved it on every movement. The user confirmed icon dragging, normal clicks, and right-clicks work correctly.
+- The user confirmed touchpad movement and taps, three-finger middle-click and two-finger scrolling without pointer jumps. The gesture add-on also passes 22 native checks.
 - The final module set passed a reboot. The Media Kit library override and microphone settings loaded, followed by 57 valid camera frames and 71 audio buffers in separate three-second captures.
 
 ## Source and binaries
@@ -33,6 +36,7 @@ The mixer override was built from the X270's Haiku source tree, whose `AudioMixe
 ```text
 /boot/home/config/non-packaged/add-ons/kernel/drivers/bin/hda
 /boot/home/config/non-packaged/add-ons/kernel/bus_managers/ps2
+/boot/home/config/non-packaged/add-ons/input_server/devices/mouse
 /boot/home/config/non-packaged/add-ons/media/aukey_webcam_v4.media_addon
 /boot/home/config/non-packaged/add-ons/media/mixer.media_addon
 /boot/system/non-packaged/lib/libmedia.so

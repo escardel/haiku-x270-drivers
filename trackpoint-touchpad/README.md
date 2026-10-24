@@ -10,6 +10,12 @@ The fix uses the device's stick-button capability to route those buttons through
 
 The source comparison and event measurements are in [validation/RESULTS.md](validation/RESULTS.md). The temporary pointer tracer was removed after testing.
 
+## Touchpad gestures, 2026-10-23
+
+The combined installer now also includes a native input_server mouse add-on. It fixes light tap-to-click, implements reliable three-finger tap middle-click and suppresses pointer jumps when fingers lift unevenly after two-finger scrolling. The user confirmed movement, taps, middle-click and scrolling work. The existing working PS/2 module is unchanged.
+
+Source and a standalone native build/test script are in [gesture-addon/](gesture-addon/). The add-on preserves existing scroll preferences; enable tapping in Input preferences (tap sensitivity zero disables it). Its changes are recorded in `patches/0003-touchpad-gestures.patch`. See [gesture validation](validation/TOUCHPAD-GESTURES.md) for the 22 checks and physical confirmation, and the [installer guide](../installer/README.md) for upgrades and uninstall.
+
 ## Source patches and build
 
 Apply `patches/x270-ps2-working.patch` first to the Haiku source base documented in the root README, and commit that baseline before applying `patches/0002-route-trackpoint-buttons.patch` with `git am`.

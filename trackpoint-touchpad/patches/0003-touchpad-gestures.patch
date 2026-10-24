@@ -1,0 +1,175 @@
+--- a/src/add-ons/input_server/devices/mouse/MouseInputDevice.cpp
++++ b/src/add-ons/input_server/devices/mouse/MouseInputDevice.cpp
+@@ -15,6 +15,7 @@
+ #include "MouseInputDevice.h"
+ 
+ #include <errno.h>
++#include <syslog.h>
+ #include <new>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -340,6 +341,10 @@
+ 	if (ioctl(fDevice, MS_IS_TOUCHPAD, &touchpadSpecs, sizeof(touchpadSpecs)) == B_OK) {
+ 		TRACE("is touchpad %s\n", fPath.String());
+ 		fIsTouchpad = true;
++        syslog(LOG_INFO, "X270 touchpad fix v2 (gesture-only): %s min=%u realMax=%u max=%u area=%u,%u-%u,%u",
++            fPath.String(),touchpadSpecs.minPressure,touchpadSpecs.realMaxPressure,
++            touchpadSpecs.maxPressure,touchpadSpecs.areaStartX,touchpadSpecs.areaStartY,
++            touchpadSpecs.areaEndX,touchpadSpecs.areaEndY);
+ 
+ 		touchpad_settings settings;
+ 		settings = kDefaultTouchpadSettings;
+@@ -420,6 +425,7 @@
+ 			if (read.event == MS_READ_TOUCHPAD) {
+ 				status = fTouchpadMovementMaker.EventToMovement(&read.u.touchpad,
+ 					&movements, touchpadEventTimeout);
++
+ 				if (status == B_OK)
+ 					lastTouchpadMovement = read.u.touchpad;
+ 			} else if (read.event == MS_READ) {
+--- a/src/add-ons/input_server/devices/mouse/movement_maker.cpp
++++ b/src/add-ons/input_server/devices/mouse/movement_maker.cpp
+@@ -87,6 +87,14 @@
+ // #pragma mark -
+ 
+ 
++MovementMaker::MovementMaker()
++    : xDelta(0), yDelta(0), scrolling_x(0), scrolling_y(0), fSpecs{},
++      fSettings(kDefaultTouchpadSettings), fSpeed(1), fAreaWidth(4100),
++      fAreaHeight(3140), fMovementMakerStarted(true), fPreviousX(0),
++      fPreviousY(0), fDeltaSumX(0), fDeltaSumY(0), fSmallMovement(3)
++{
++}
++
+ void
+ MovementMaker::SetSettings(const touchpad_settings& settings)
+ {
+@@ -123,6 +131,8 @@
+ 		fSettings.scroll_ystepsize = 1;
+ 
+ 	fMovementMakerStarted = true;
++	fDeltaSumX = fDeltaSumY = 0;
++	xDelta = yDelta = 0;
+ 	scrolling_x = 0;
+ 	scrolling_y = 0;
+ }
+@@ -274,6 +284,18 @@
+ {
+ 	CALLED();
+ 
++    click_speed = 500000;
++    fMultiFingerGesture = false;
++    fTapReleasePending = false;
++    fPreviousFingers = 0;
++    fTapTime = 0;
++    fTapDeltaX = fTapDeltaY = fTapClicks = fTapFingers = 0;
++    fTapdragStarted = false;
++    fLastEdgeMotion = 0;
++    fRestEdgeMotion = 0;
++    fClickLastTime = 0;
++    fClickCount = 0;
++    fButtonsState = 0;
+ 	fMovementStarted = false;
+ 	fScrollingStarted = false;
+ 	fTapStarted = false;
+@@ -331,6 +353,7 @@
+ 	movement->modifiers = 0;
+ 	movement->clicks = 0;
+ 	movement->timestamp = system_time();
++	fTapReleasePending = false;
+ 
+ 	touchpad_movement event2 = *_event;
+ 	if (!_ClickFingerButtonEmulator(&event2))
+@@ -369,14 +392,28 @@
+ 		&& ((event->fingerWidth >= 4 && event->fingerWidth <= 7)
+ 			|| two_or_more_fingers(event))
+ 		&& (event->xPosition != 0 || event->yPosition != 0)) {
+-		// The touch pad is in touch with at least one finger
+-		if (!_CheckScrollingToMovement(event, movement))
+-			_MoveToMovement(event, movement);
+-	} else
+-		_NoTouchToMovement(event, movement);
+-
+-
+-	if (fTapdragStarted || fValidEdgeMotion) {
++        // A finger being added or lifted changes the reported primary position.
++        uint8 fingers = count_set_bits(event->fingers);
++        if (fingers == 0) fingers = 1;
++        if (fPreviousFingers != fingers) StartNewMovment();
++        fPreviousFingers = fingers;
++        if (fingers >= 2) fMultiFingerGesture = true;
++        // Keep a scrolling gesture from turning into pointer motion on lift-off.
++        if (fMultiFingerGesture && fingers == 1 && event->buttons == 0) {
++            movement->buttons = 0;
++            _UpdateButtons(movement);
++        } else if (!_CheckScrollingToMovement(event, movement))
++            _MoveToMovement(event, movement);
++    } else {
++        _NoTouchToMovement(event, movement);
++        fPreviousFingers = 0;
++        fMultiFingerGesture = false;
++    }
++
++
++	if (fTapReleasePending) {
++		repeatTimeout = 1000;
++	} else if (fTapdragStarted || fValidEdgeMotion) {
+ 		// We want the current event to be repeated in 50ms if no other
+ 		// events occur in the interim.
+ 		repeatTimeout = 1000 * 50;
+@@ -588,6 +625,7 @@
+ 			fTapClicks = 0;
+ 			fDoubleClick = true;
+ 		} else {
++			fTapReleasePending = true;
+ 			if (fTapFingers == 2) {
+ 				buttons = kRightButton;
+ 			} else if (fTapFingers == 3) {
+@@ -627,8 +665,8 @@
+ 	movement->ydelta = make_small(yDelta);
+ 
+ 	// tap gesture
+-	fTapDeltaX += make_small(xDelta);
+-	fTapDeltaY += make_small(yDelta);
++	fTapDeltaX += abs(make_small(xDelta));
++	fTapDeltaY += abs(make_small(yDelta));
+ 
+ 	if (fTapdragStarted) {
+ 		movement->buttons = kLeftButton;
+@@ -744,13 +782,9 @@
+ void
+ TouchpadMovement::_CheckTapStarted(const touchpad_movement *event)
+ {
+-	// use only a fraction of pressure range, the max pressure seems to be
+-	// to high
+-	float pressure = 20 * (event->zPressure - fSpecs.minPressure)
+-		/ (fSpecs.realMaxPressure - fSpecs.minPressure);
+-	if (!fTapStarted
+-		&& fSettings.tapgesture_sensibility > 0.
+-		&& fSettings.tapgesture_sensibility > (20 - pressure)) {
++    // The caller has already verified contact pressure. The first packet of a
++    // light tap can be exactly minPressure; do not require a second threshold.
++    if (!fTapStarted && event->buttons == 0 && fSettings.tapgesture_sensibility > 0) {
+ 		TRACE("TouchpadMovement: tap started\n");
+ 		fTapStarted = true;
+ 		fTapTime = system_time();
+--- a/src/add-ons/input_server/devices/mouse/movement_maker.h
++++ b/src/add-ons/input_server/devices/mouse/movement_maker.h
+@@ -14,6 +14,7 @@
+ 
+ class MovementMaker {
+ public:
++	MovementMaker();
+ 			void				SetSpecs(const touchpad_specs& specs);
+ 			void				SetSettings(const touchpad_settings& settings);
+ 
+@@ -87,6 +88,9 @@
+ 	inline	void				_CheckTapStarted(const touchpad_movement *event);
+ 
+ 
++			bool fMultiFingerGesture;
++			bool fTapReleasePending;
++			uint8 fPreviousFingers;
+ 			bool				fMovementStarted;
+ 			bool				fScrollingStarted;
+ 			bool				fTapStarted;

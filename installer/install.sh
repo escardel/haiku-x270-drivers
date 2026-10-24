@@ -137,6 +137,13 @@ while IFS='|' read -r kind source target mode; do
     mkdir -p "$(dirname "$target")"
     if [[ $kind == link ]]; then
         ln -s "$source" "$target.x270-new"
+    elif [[ $component == trackpoint-touchpad && $source == mouse ]]; then
+        # Keep the staged image outside input_server's watched device directory.
+        # Loading a temporary second add-on can claim the same hardware twice.
+        cp -p "payload/$source" "$state/mouse.x270-new"
+        chmod "$mode" "$state/mouse.x270-new"
+        mv -f "$state/mouse.x270-new" "$target"
+        continue
     else
         cp -p "payload/$source" "$target.x270-new"
         chmod "$mode" "$target.x270-new"

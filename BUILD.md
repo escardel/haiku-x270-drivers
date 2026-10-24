@@ -35,6 +35,8 @@ g++ -shared -Wl,-soname,libmedia.so \
 
 ## Focused checks
 
+The touchpad gesture update builds independently of the kernel from `trackpoint-touchpad/gesture-addon/`. On Haiku `hrev59866+92` x86_64, run `bash build.sh` in that directory. Installed GCC and private development headers are required; the script builds the mouse add-on and runs its 22 gesture checks. `trackpoint-touchpad/patches/0003-touchpad-gestures.patch` contains the corresponding downstream changes. The packaged PS/2 module remains unchanged; rebuilding it is unnecessary for this update.
+
 Build `media_capture.cpp` with `g++ -std=c++17 -o media_capture media_capture.cpp -lbe -lmedia`. Setting `X270_RECORDER_ONLY=1` disables the probe's explicit node starts, so an audio capture tests `BMediaRecorder::Start()` itself.
 
 ```sh
