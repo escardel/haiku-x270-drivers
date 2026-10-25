@@ -1,19 +1,29 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
-# Revision-specific X270 component installer. Invoke with bash.
+# X270 component installer. Invoke with bash.
+# The builder sets this to 1 only for explicitly untested pre-release bundles.
+revision_unlocked=0
 set -euo pipefail
 cd "$(dirname "$0")"
 component=$(cat COMPONENT)
 case "$component" in trackpoint-touchpad|webcam|microphone|bluetooth) ;; *) exit 2;; esac
 action=${1:---help}
 case "$action" in --install|--uninstall|--verify) ;; *)
-    echo "X270 $component installer for Haiku hrev59866+92 x86_64"
+    if [[ $revision_unlocked == 1 ]]; then
+        echo "X270 $component installer: any Haiku revision, x86_64; EXPERIMENTAL AND UNTESTED"
+    else
+        echo "X270 $component installer for Haiku hrev59866+92 x86_64"
+    fi
     echo 'Usage: bash install.sh --verify | --install | --uninstall'
     echo 'Installation changes system components. Save work first; reboot afterward.'
     exit 0;; esac
 [[ $(uname -s) == Haiku && $(uname -m) == x86_64 ]] || {
     echo 'Run this installer on Haiku x86_64.'; exit 1; }
-[[ $action == --uninstall || $(uname -v) == *hrev59866+92* ]] || {
+if [[ $revision_unlocked == 1 ]]; then
+    echo "EXPERIMENTAL AND UNTESTED: Haiku revision check bypassed ($(uname -v))."
+    echo "Built for hrev59866+92 x86_64; compatibility is unknown. May fail or crash."
+fi
+[[ $revision_unlocked == 1 || $action == --uninstall || $(uname -v) == *hrev59866+92* ]] || {
     echo 'This build requires Haiku hrev59866+92 x86_64. Rebuild for other revisions.'; exit 1; }
 [[ $HOME == /boot/home ]] || { echo 'This X270 build expects HOME=/boot/home.'; exit 1; }
 sha256sum -c SHA256SUMS

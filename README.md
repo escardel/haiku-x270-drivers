@@ -4,7 +4,9 @@ TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 
 
 ## Download installers
 
-[GitHub Releases](https://github.com/escardel/haiku-x270-drivers/releases) contains **four separate installers**: TrackPoint/touchpad, webcam, microphone/audio, and Bluetooth. Each has checksums, backups and uninstall. They reject other Haiku revisions/architectures. See [installation and recovery instructions](installer/README.md).
+**Experimental, untested pre-release:** [version-unlocked X270 installers](https://github.com/escardel/haiku-x270-drivers/releases/tag/v2026.10.25.1-unlocked) automatically bypass the Haiku revision check on any x86_64 revision. Compatibility is unknown; they may fail or crash. See the pre-release description for installation, removal and boot recovery.
+
+[GitHub Releases](https://github.com/escardel/haiku-x270-drivers/releases) contains **four separate installers**: TrackPoint/touchpad, webcam, microphone/audio, and Bluetooth. Each has checksums, backups and uninstall. The regular releases reject other Haiku revisions/architectures. See [installation and recovery instructions](installer/README.md).
 
 Bluetooth AX210 (`8087:0032`) now loads signed operational firmware and completes device discovery through Haiku's Bluetooth Kit. Pairing, HID, BLE and Bluetooth audio remain untested. See [Bluetooth implementation and validation](bluetooth/README.md).
 
@@ -14,7 +16,7 @@ Release **2026.10.23.1** adds the tested native touchpad gesture add-on to the c
 
 ## Verified on the X270
 
-- Built-in SunplusIT camera (`5986:2118`) supplies real 640×480 frames through Media Kit and Firefox. The combined Firefox test delivered 258 video frame callbacks in 15 seconds. The UVC driver selects USB alternate 0 after capture stops; the user confirmed the camera light is off when unused.
+- Built-in SunplusIT camera (`5986:2118`) supplies real 640Ã—480 frames through Media Kit and Firefox. The combined Firefox test delivered 258 video frame callbacks in 15 seconds. The UVC driver selects USB alternate 0 after capture stops; the user confirmed the camera light is off when unused.
 - Internal Realtek ALC298 microphone, via Intel HDA (`8086:9d71`, codec `10ec:0298`, Lenovo subsystem `17aa:5062`), records through ADC 9. Firefox recorded a 3.003-second audio file at 48 kHz with nonzero decoded samples (AC RMS 0.001328). A second capture succeeded and released the Media Kit input afterward.
 - Media services remained running after the combined test. A desktop mixer crash report predates the patched mixer override; no new report appeared during these tests.
 - Physical TrackPoint button dragging in Tracker now works. Before the fix, all 32 held movement messages lost the left-button state; afterward, captured drag sequences preserved it on every movement. The user confirmed icon dragging, normal clicks, and right-clicks work correctly.

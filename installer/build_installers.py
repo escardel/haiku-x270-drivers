@@ -1,12 +1,17 @@
 """Build four self-contained, revision-specific Haiku installer ZIPs."""
 from pathlib import Path
+import argparse
 import hashlib
 import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-DIST = ROOT / 'dist'
-VERSION = '2026.10.23.1'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--unlocked', action='store_true', help='Package experimental, untested installers without a Haiku revision gate')
+args = parser.parse_args()
+DIST = ROOT / 'dist' / 'unlocked' if args.unlocked else ROOT / 'dist'
+VERSION = '2026.10.25.1-unlocked' if args.unlocked else '2026.10.23.1'
+TARGET = 'any-haiku-revision-x86_64' if args.unlocked else 'hrev59866+92-x86_64'
 BASE = ROOT / 'artifacts/haiku-x86_64-hrev59866+92'
 BT = ROOT / 'artifacts/bluetooth-haiku-x86_64-hrev59866+92'
 DATA = '/boot/home/config/non-packaged/data/x270-drivers'
@@ -50,9 +55,9 @@ def hashes(directory):
                    for p in sorted(directory.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS')
 
 
-DIST.mkdir(exist_ok=True)
+DIST.mkdir(parents=True, exist_ok=True)
 for component, files in COMPONENTS.items():
-    name = f'x270-{component}-{VERSION}-hrev59866+92-x86_64'
+    name = f'x270-{component}-{VERSION}-{TARGET}'
     bundle = DIST/name
     # Each generated directory is exclusively owned by this builder.
     if bundle.exists():
@@ -60,6 +65,11 @@ for component, files in COMPONENTS.items():
         shutil.rmtree(bundle)
     bundle.mkdir()
     copy(ROOT/'installer/install.sh', bundle/'install.sh')
+    if args.unlocked:
+        installer = bundle/'install.sh'
+        script = installer.read_text()
+        script = script.replace('revision_unlocked=0', 'revision_unlocked=1', 1)
+        installer.write_text(script, encoding='utf-8', newline='\n')
     (bundle/'COMPONENT').write_text(component+'\n', encoding='ascii', newline='\n')
     records = []
     for source, target in files:
@@ -95,9 +105,12 @@ for component, files in COMPONENTS.items():
         'microphone': 'Realtek ALC298 on Intel 8086:9d71. Includes HDA, Media Kit recorder and mixer fixes, SoundRecorder, saved ADC9 selector 5/gain 12 dB, and HD Audio output selection. Installation briefly stops media services. Uninstall restores the saved pre-install audio settings.',
         'bluetooth': 'Intel AX210 8087:0032 only. Signed volatile firmware bootstrap and Bluetooth Kit initialization fix. Inquiry validated; pairing, HID, BLE, file transfer and Bluetooth audio unverified. Adds a background startup entry.',
     }[component]
+    compatibility = ('**EXPERIMENTAL AND UNTESTED.** These version-unlocked packages have not been installed or tested on Haiku. They automatically bypass the Haiku revision check on every Haiku x86_64 revision, without an extra force flag. The unchanged binaries were built for hrev59866+92; loading on any other revision may fail or crash. No ABI compatibility is promised. 32-bit Haiku is unsupported. Historical validation in included source notes applies only to the original locked release.' if args.unlocked else 'Experimental binaries for **Haiku hrev59866+92 x86_64** on the tested ThinkPad X270. The installer rejects other revisions and architectures.')
     (bundle/'README.md').write_text(f'''# X270 {component} installer {VERSION}
 
-Experimental binaries for **Haiku hrev59866+92 x86_64** on the tested ThinkPad X270. The installer rejects other revisions and architectures. Keep a working boot option; save work before installation. These packages do not install a compiler or rebuild Haiku.
+{compatibility} Keep a working boot option; save work before installation. These packages do not install a compiler or rebuild Haiku.
+
+Component background (historical observations are not validation of this package):
 
 {details}
 
@@ -130,5 +143,5 @@ Source, patches, validation and rebuild instructions: https://github.com/escarde
             if p.is_file(): archive.write(p, name+'/'+p.relative_to(bundle).as_posix())
     print(name+'.zip')
 
-archives = sorted(DIST.glob(f'x270-*-{VERSION}-hrev59866+92-x86_64.zip'))
+archives = sorted(DIST.glob(f'x270-*-{VERSION}-{TARGET}.zip'))
 (DIST/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in archives), encoding='ascii', newline='\n')
