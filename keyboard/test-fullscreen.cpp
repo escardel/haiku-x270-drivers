@@ -34,9 +34,16 @@ int main() {
  bool left = snap(kComma,false), right = snap(kPeriod,true);
  actions->PostMessage(&action); snooze(300000);
  bool fromFullscreen = snap(kComma,false);
- window->Lock(); window->Quit();
+ BMessage maximize(kAction); maximize.AddInt32("key",kSlash); actions->PostMessage(&maximize); snooze(300000);
+ window->Lock(); BRect maximizedFrame = window->Frame(); bool maximized = window->Look() == look
+  && maximizedFrame.left >= screen.left && maximizedFrame.left < screen.left+20
+  && maximizedFrame.right <= screen.right && maximizedFrame.right > screen.right-20
+  && maximizedFrame.top >= screen.top && maximizedFrame.top < screen.top+60
+  && maximizedFrame.bottom <= screen.bottom && maximizedFrame.bottom > screen.bottom-20;
+ window->Quit();
  if(actions->Lock()) actions->Quit();
  printf("Fullscreen entered: %s; original frame and border restored: %s\n",entered ? "yes" : "no",restored ? "yes" : "no");
  printf("Snap left: %s; snap right: %s; snap out of fullscreen: %s\n",left ? "yes":"no",right ? "yes":"no",fromFullscreen ? "yes":"no");
- return entered && restored && left && right && fromFullscreen ? 0 : 1;
+ printf("Maximize with border preserved: %s\n",maximized ? "yes":"no");
+ return entered && restored && left && right && fromFullscreen && maximized ? 0 : 1;
 }

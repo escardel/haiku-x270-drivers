@@ -22,7 +22,7 @@
 #include <string.h>
 
 static const uint32 kAction = 'fnac';
-static const int32 kComma = 0x53, kPeriod = 0x54;
+static const int32 kComma = 0x53, kPeriod = 0x54, kSlash = 0x55;
 static void Log(const char* text, status_t status = B_OK)
 {
  BPath path;
@@ -105,7 +105,7 @@ static status_t Set(BMessenger target, const char* name, const BRect* frame, int
 }
 class Actions : public BLooper {
  std::map<int32, SavedWindow> fSaved;
- void Snap(bool right)
+ void Snap(bool right, bool maximize = false)
  {
   app_info app;
   if (be_roster->GetActiveAppInfo(&app) != B_OK) return;
@@ -131,13 +131,15 @@ class Actions : public BLooper {
    if (!screen.IsValid()) { free(info); break; }
    BRect frame = screen.Frame();
    float split = frame.left + (int32)((frame.Width() + 1) / 2);
-   if (right) frame.left = split; else frame.right = split - 1;
+   if (!maximize) {
+    if (right) frame.left = split; else frame.right = split - 1;
+   }
    // Fit the entire decorated window within its screen half.
    frame.left += info->border_size; frame.right -= info->border_size;
    frame.top += info->tab_height + info->border_size;
    frame.bottom -= info->border_size;
    free(info);
-   Log(right ? "snap right" : "snap left", Set(target, "Frame", &frame));
+   Log(maximize ? "maximize" : (right ? "snap right" : "snap left"), Set(target, "Frame", &frame));
    break;
   }
   free(tokens);
@@ -200,10 +202,10 @@ public:
    case B_F7_KEY: Fullscreen(); return;
    case kComma: Snap(false); return;
    case kPeriod: Snap(true); return;
+   case kSlash: Snap(false, true); return;
    case B_F9_KEY: command = "/bin/open /boot/system/preferences"; break;
    case B_F11_KEY: command = "/bin/open /boot/system/apps/Terminal"; break;
-   case B_F8_KEY: command = "/bin/open /boot/system/apps/Firefox/Firefox"; break;
-   case B_F12_KEY: command = "/bin/open /boot/system/apps/WindowTailor"; break;
+   case B_F12_KEY: command = "/bin/open /boot/system/apps/Firefox/Firefox"; break;
   }
   if (command) {
    int result = system(command);
@@ -244,7 +246,7 @@ public:
   int32 key;
   if ((!down && !up) || message->FindInt32("key", &key) != B_OK) return B_DISPATCH_MESSAGE;
   bool functionKey = key >= B_F1_KEY && key <= B_F12_KEY;
-  if (!functionKey && key != kComma && key != kPeriod) return B_DISPATCH_MESSAGE;
+  if (!functionKey && key != kComma && key != kPeriod && key != kSlash) return B_DISPATCH_MESSAGE;
   int index = key;
   int32 modifiers = 0;
   message->FindInt32("modifiers", &modifiers);

@@ -31,17 +31,18 @@ released first. The physical Alt modifiers are read from the keymap at filter lo
 | F5 | Reduce brightness by 5 percentage points |
 | F6 | Increase brightness by 5 percentage points |
 | F7 | Toggle active window's borderless fullscreen; restore its frame and border on next press |
-| F8 | Launch Firefox |
+| F8 | Disabled |
 | F9 | Open `/boot/system/preferences` in Tracker |
 | F10 | Disabled |
 | F11 | Open Terminal |
-| F12 | Launch Window Tailor |
+| F12 | Launch Firefox |
 
 **Alt+,** snaps the active window to the left half of the screen;
-**Alt+.** snaps it to the right half. Either physical Alt key works.
+**Alt+.** snaps it to the right half; **Alt+/** maximizes it with its
+title bar and border intact. Either physical Alt key works.
 The window border/title tab fits inside its half. Snapping out of F7 fullscreen
 restores the border first. Application size limits still apply.
-Comma and period without Alt pass through normally.
+Comma, period and slash without Alt pass through normally.
 
 Volume, mute, and brightness display a temporary native popup with a level bar.
 Each update replaces the previous popup and disappears after 1.5 seconds.
@@ -72,7 +73,7 @@ left/right Alt bypass, modifier ordering during a held key, repeat behavior,
 and pass-through of unrelated input.
 `make check-fullscreen` briefly opens a test window and verifies fullscreen entry
 and restoration of the original frame and border, left/right snapping, and
-snapping out of fullscreen.
+snapping out of fullscreen, and maximize.
 The filter's successful live load was verified with `listimage` on input_server.
 Physical keyboard presses have not been verified automatically.
 
