@@ -2,19 +2,39 @@
 
 Build this directory with `make`. This is an input-server filter, not a kernel driver.
 
-The release ZIP includes `payload/fn_shortcuts`, source, tests, and checksums.
-Run `bash install.sh --verify`, then `bash install.sh --install`.
-Use `bash install.sh --uninstall` to remove it and restore a previous filter.
-The installer supports Haiku x86_64 hrev59866+92; rebuild for other revisions.
-Exit F7 fullscreen before replacing/removing the filter.
+## Native installation
 
-The Git checkout stores the prebuilt binary in
-`../artifacts/keyboard-haiku-x86_64-hrev59866+92/fn_shortcuts`.
-To use the installer from the checkout, copy it into `payload/fn_shortcuts`
-and generate `SHA256SUMS`, or use the complete release ZIP.
-Installed add-on: `/boot/home/config/non-packaged/add-ons/input_server/filters/fn_shortcuts`.
-Haiku loads this input-server filter automatically, including at subsequent boots.
-No boot script or kernel driver modification is needed.
+Open `x270_keyboard_shortcuts-2026.11.07.1-1-x86_64.hpkg` to install with
+Haiku's graphical package installer. The filter loads automatically; no boot
+script or kernel driver modification is needed. The package requires Haiku
+x86_64 hrev59866+92. Rebuild for other revisions.
+
+The native source ZIP includes the `.hpkg`, build source, tests and checksums.
+Check `Keyboard-SHA256SUMS` for the release downloads or `SHA256SUMS` inside
+the extracted native ZIP. Build with `python3 packaging/build-package.py`.
+
+The package installs `add-ons/input_server/filters/fn_shortcuts`, exposed at
+`/boot/system/add-ons/input_server/filters/fn_shortcuts` for a system install
+or `~/config/add-ons/input_server/filters/fn_shortcuts` for a home install.
+A normal system install activates without rebooting. A first-time home install
+may require rebooting because its add-on directory did not exist when
+input_server started.
+
+**Upgrading a manual/ZIP installation:** exit F7 fullscreen first. If installed
+using the legacy ZIP script, run that ZIP's `bash install.sh --uninstall`.
+Move any remaining manual filter at
+`~/config/non-packaged/add-ons/input_server/filters/fn_shortcuts` out of that
+directory before installing the package. A non-packaged copy can override the
+packaged copy. The native package does not delete or modify manual files.
+
+**Remove the native package:** exit F7 fullscreen, then remove
+`x270_keyboard_shortcuts` through HaikuDepot, or run
+`pkgman uninstall x270_keyboard_shortcuts` (add `--home` for a home install).
+The add-on unloads and normal function-key behavior returns. If a manual
+copy is still present it remains active. No personal settings are bundled.
+
+The original ZIP/script installer remains available as a separate legacy
+installation method; its backup/restore state belongs to that script.
 
 F1–F12 perform the shortcuts below. Hold either physical Alt key before pressing a
 function key to bypass the shortcuts and pass the original event, including Alt
@@ -57,13 +77,13 @@ before removing or replacing the filter.
 
 ## Build and install
 
-Run `make` in this directory, then `make install`. For an already loaded filter,
+For a manual installation, run `make` in this directory, then `make install`. For an already loaded filter,
 run `make uninstall` first, allow Haiku to unload it, then `make install`.
 Do not overwrite a loaded binary in place.
 
 ## Remove
 
-Run `make uninstall` in this directory. Haiku detects the removal and unloads the filter.
+For a manual installation, run `make uninstall` in this directory. Haiku detects the removal and unloads the filter.
 The function keys then resume their normal behavior. Source files remain here.
 
 ## Verification

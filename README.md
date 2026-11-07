@@ -4,7 +4,7 @@ TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 
 
 ## Keyboard shortcuts
 
-The [keyboard input-server filter](keyboard/README.md) assigns F1–F12 to volume, brightness, fullscreen, settings, Terminal and Firefox. Hold either Alt key to pass the original function-key event to applications. Alt+, and Alt+. snap the active window left and right; Alt+/ maximizes it. Volume and brightness show temporary level popups. Source, tests, a prebuilt binary, and a separate installer ZIP are included.
+The [keyboard input-server filter](keyboard/README.md) assigns F1–F12 to volume, brightness, fullscreen, settings, Terminal and Firefox. Hold either Alt key to pass the original function-key event to applications. Alt+, and Alt+. snap the active window left and right; Alt+/ maximizes it. Volume and brightness show temporary level popups. Open the [native keyboard package](artifacts/keyboard-haiku-x86_64-hrev59866+92/x270_keyboard_shortcuts-2026.11.07.1-1-x86_64.hpkg) for graphical installation. A [native package and source ZIP](artifacts/keyboard-haiku-x86_64-hrev59866+92/x270-keyboard-2026.11.07.1-native-x86_64.zip) and [checksums](artifacts/keyboard-haiku-x86_64-hrev59866+92/Keyboard-SHA256SUMS) are also available. The original script installer is retained.
 
 ## Display Color
 

@@ -1,0 +1,20 @@
+name            x270_keyboard_shortcuts
+version         2026.11.07.1-1
+architecture    x86_64
+summary         "System-wide function-key and window shortcuts for the X270"
+description     "Input-server filter for volume, mute, brightness, fullscreen,
+application launching, and Alt comma/period/slash window management.
+Hold either Alt key to pass F1-F12 through to applications.
+Built and tested on Haiku hrev59866+92 x86_64; rebuild for other revisions."
+vendor          "X270 keyboard utility contributors"
+packager        "escardel"
+copyrights      "2026 X270 keyboard utility contributors"
+licenses        "X270Keyboard-License-Notice"
+provides {
+    x270_keyboard_shortcuts = 2026.11.07.1
+}
+requires {
+    haiku == r1~beta6_hrev59866_92-1
+    lib:libgcc_s
+    lib:libstdc++
+}

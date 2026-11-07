@@ -76,3 +76,12 @@ These build checks do not alter display hardware. Do not run the separate
 The committed distribution files are in `artifacts/displaycolor-haiku-x86_64/`.
 Install/remove and compatibility details: `display-color/packaging/README.md`.
 The supplied license notice does not grant an open-source license.
+
+## Native keyboard package
+
+Run `python3 keyboard/packaging/build-package.py` on matching x86_64 Haiku.
+It builds the filter, runs key-routing tests and produces a native `.hpkg`,
+a source-inclusive ZIP and `Keyboard-SHA256SUMS` in `keyboard/dist/`.
+The package has an exact Haiku hrev59866+92 dependency and installs only the
+filter, documentation and license notice. It does not modify boot scripts or
+manual copies. See `keyboard/README.md` for migration and removal.
