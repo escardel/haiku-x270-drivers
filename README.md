@@ -2,6 +2,10 @@
 
 TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 beta 6, `hrev59866+92`, x86_64 on a Lenovo ThinkPad X270. Measurements and limitations are in [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
 
+## Keyboard shortcuts
+
+The [keyboard input-server filter](keyboard/README.md) assigns F1–F12 to volume, brightness, fullscreen, settings, Terminal and Firefox. Hold either Alt key to pass the original function-key event to applications. Volume and brightness show temporary level popups. Source, tests, a prebuilt binary, and a separate installer ZIP are included.
+
 ## Download installers
 
 **Experimental, untested pre-release:** [version-unlocked X270 installers](https://github.com/escardel/haiku-x270-drivers/releases/tag/v2026.10.25.1-unlocked) automatically bypass the Haiku revision check on any x86_64 revision. Compatibility is unknown; they may fail or crash. See the pre-release description for installation, removal and boot recovery.
