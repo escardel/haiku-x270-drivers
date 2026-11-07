@@ -162,7 +162,8 @@ public:
    case B_F7_KEY: Fullscreen(); return;
    case B_F9_KEY: command = "/bin/open /boot/system/preferences"; break;
    case B_F11_KEY: command = "/bin/open /boot/system/apps/Terminal"; break;
-   case B_F12_KEY: command = "/bin/open /boot/system/apps/Firefox/Firefox"; break;
+   case B_F8_KEY: command = "/bin/open /boot/system/apps/Firefox/Firefox"; break;
+   case B_F12_KEY: command = "/bin/open /boot/system/apps/WindowTailor"; break;
   }
   if (command) {
    int result = system(command);

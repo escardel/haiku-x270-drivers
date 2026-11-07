@@ -31,11 +31,11 @@ released first. The physical Alt modifiers are read from the keymap at filter lo
 | F5 | Reduce brightness by 5 percentage points |
 | F6 | Increase brightness by 5 percentage points |
 | F7 | Toggle active window's borderless fullscreen; restore its frame and border on next press |
-| F8 | Disabled |
+| F8 | Launch Firefox |
 | F9 | Open `/boot/system/preferences` in Tracker |
 | F10 | Disabled |
 | F11 | Open Terminal |
-| F12 | Launch `/boot/system/apps/Firefox/Firefox` |
+| F12 | Launch Window Tailor |
 
 Volume, mute, and brightness display a temporary native popup with a level bar.
 Each update replaces the previous popup and disappears after 1.5 seconds.
