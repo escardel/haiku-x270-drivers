@@ -55,3 +55,24 @@ Compile `media_graph.cpp`, `media_output_setup.cpp`, and `audio_playback_probe.c
 After selecting the output, stop `x-vnd.haiku-media_server` using `launch_roster stop`, gracefully quit the actual `media_addon_server` PID with `hey -o PID quit`, then start `x-vnd.haiku-media_server` using `launch_roster start`. Check the graph for a connected mixer and advancing HDA clock afterward.
 
 The Firefox identity repair is profile-specific. Exit Firefox before running it; it preserves the first backup and removes only `general.useragent.override`. Normal session restoration remains enabled. Capture permission bypass preferences are confined to the separate diagnostic profile.
+
+## Display Color
+
+Application, startup helper, guarded preview tool, resource definitions and tests
+are in `display-color/`. On x86_64 Haiku with matching private Intel graphics
+headers, run:
+
+```sh
+cd display-color
+bash packaging/build-package.sh
+```
+
+The script builds the app and helpers, runs curve/matrix/schedule checks,
+simulated hardware and isolated preview-settings tests, and simulated rollback
+checks. It creates a native `.hpkg`, source ZIP and checksums in `dist/`.
+These build checks do not alter display hardware. Do not run the separate
+`--verify-hardware` mode unless intentionally restoring neutral output.
+
+The committed distribution files are in `artifacts/displaycolor-haiku-x86_64/`.
+Install/remove and compatibility details: `display-color/packaging/README.md`.
+The supplied license notice does not grant an open-source license.

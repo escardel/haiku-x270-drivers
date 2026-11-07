@@ -1,0 +1,22 @@
+name            displaycolor
+version         1.1.1-1
+architecture    x86_64
+summary         "RGB saturation, tone and blue-light tuning for the X270 display"
+description     "Bonus native Haiku application for display-wide contrast and gamma
+tuning, independent RGB saturation and scheduled blue-light filtering on Intel
+Skylake and Kaby Lake graphics using intel_extreme.
+No Haiku revision gate; compatibility with other revisions is not guaranteed.
+Uses private driver structures and hardware registers. x86_64 only."
+vendor          "Display Color contributors"
+packager        "escardel"
+copyrights      "2026 Display Color contributors"
+licenses        "DisplayColor-License-Notice"
+provides {
+    displaycolor = 1.1.1
+    app:DisplayColor = 1.1.1
+}
+requires {
+    haiku
+    lib:libgcc_s
+    lib:libstdc++
+}

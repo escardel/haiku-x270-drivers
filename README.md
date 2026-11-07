@@ -6,6 +6,12 @@ TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 
 
 The [keyboard input-server filter](keyboard/README.md) assigns F1–F12 to volume, brightness, fullscreen, settings, Terminal and Firefox. Hold either Alt key to pass the original function-key event to applications. Volume and brightness show temporary level popups. Source, tests, a prebuilt binary, and a separate installer ZIP are included.
 
+## Display Color
+
+[Display Color 1.1.1](display-color/README.md) is an optional native app for whole-display contrast, gamma, independent RGB saturation and scheduled blue-light filtering. It includes an optional guarded preview tool. It supports Intel Skylake/Kaby Lake graphics with `intel_extreme` on x86_64. Other Haiku revisions are untested; the package has no revision gate.
+
+Download the [native Haiku package](artifacts/displaycolor-haiku-x86_64/displaycolor-1.1.1-1-x86_64.hpkg), [package with source ZIP](artifacts/displaycolor-haiku-x86_64/displaycolor-1.1.1-any-haiku-revision-x86_64.zip), and [checksums](artifacts/displaycolor-haiku-x86_64/DisplayColor-SHA256SUMS). See [installation and removal](display-color/packaging/README.md), [safety history](display-color/packaging/SAFETY-HISTORY.md), and [release notes](releases/displaycolor-1.1.1.md).
+
 ## Download installers
 
 **Experimental, untested pre-release:** [version-unlocked X270 installers](https://github.com/escardel/haiku-x270-drivers/releases/tag/v2026.10.25.1-unlocked) automatically bypass the Haiku revision check on any x86_64 revision. Compatibility is unknown; they may fail or crash. See the pre-release description for installation, removal and boot recovery.

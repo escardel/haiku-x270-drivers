@@ -1,0 +1,7 @@
+/DisplayColor
+/DisplayColorStartup
+/SafeDisplayTest
+/*.rsrc
+/tests/HardwareTests
+/tests/PreviewTests
+/dist/
