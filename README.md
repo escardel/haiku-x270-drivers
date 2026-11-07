@@ -1,4 +1,4 @@
-# ThinkPad X270 drivers for Haiku
+# ThinkPad X270 drivers for Haiku (Vibe Coded)
 
 TrackPoint, touchpad, camera, microphone and Bluetooth development for Haiku R1 beta 6, `hrev59866+92`, x86_64 on a Lenovo ThinkPad X270. Measurements and limitations are in [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md).
 
