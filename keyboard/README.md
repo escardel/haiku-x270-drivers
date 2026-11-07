@@ -37,6 +37,12 @@ released first. The physical Alt modifiers are read from the keymap at filter lo
 | F11 | Open Terminal |
 | F12 | Launch Window Tailor |
 
+**Alt+,** snaps the active window to the left half of the screen;
+**Alt+.** snaps it to the right half. Either physical Alt key works.
+The window border/title tab fits inside its half. Snapping out of F7 fullscreen
+restores the border first. Application size limits still apply.
+Comma and period without Alt pass through normally.
+
 Volume, mute, and brightness display a temporary native popup with a level bar.
 Each update replaces the previous popup and disappears after 1.5 seconds.
 Volume shows the mixer level as a percentage of its supported dB range and the dB value;
@@ -65,7 +71,8 @@ The function keys then resume their normal behavior. Source files remain here.
 left/right Alt bypass, modifier ordering during a held key, repeat behavior,
 and pass-through of unrelated input.
 `make check-fullscreen` briefly opens a test window and verifies fullscreen entry
-and restoration of the original frame and border.
+and restoration of the original frame and border, left/right snapping, and
+snapping out of fullscreen.
 The filter's successful live load was verified with `listimage` on input_server.
 Physical keyboard presses have not been verified automatically.
 

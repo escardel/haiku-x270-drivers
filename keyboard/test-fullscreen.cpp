@@ -21,8 +21,22 @@ int main() {
  snooze(300000);
  window->Lock(); bool entered = window->Look() == B_NO_BORDER_WINDOW_LOOK && window->Frame() == BScreen().Frame(); window->Unlock();
  actions->PostMessage(&action); snooze(300000);
- window->Lock(); bool restored = window->Look() == look && window->Frame() == before; window->Quit();
+ window->Lock(); bool restored = window->Look() == look && window->Frame() == before; window->Unlock();
+ BRect screen = BScreen().Frame(); float split = screen.left + (int32)((screen.Width()+1)/2);
+ auto snap = [&](int key, bool right) {
+  BMessage action(kAction); action.AddInt32("key",key); actions->PostMessage(&action); snooze(300000);
+  window->Lock(); BRect frame = window->Frame(); bool bordered = window->Look() == look; window->Unlock();
+  bool horizontal = right ? (frame.left >= split && frame.left < split+20 && frame.right <= screen.right && frame.right > screen.right-20)
+   : (frame.left >= screen.left && frame.left < screen.left+20 && frame.right < split && frame.right > split-20);
+  return bordered && horizontal && frame.top >= screen.top && frame.top < screen.top+60
+   && frame.bottom <= screen.bottom && frame.bottom > screen.bottom-20;
+ };
+ bool left = snap(kComma,false), right = snap(kPeriod,true);
+ actions->PostMessage(&action); snooze(300000);
+ bool fromFullscreen = snap(kComma,false);
+ window->Lock(); window->Quit();
  if(actions->Lock()) actions->Quit();
  printf("Fullscreen entered: %s; original frame and border restored: %s\n",entered ? "yes" : "no",restored ? "yes" : "no");
- return entered && restored ? 0 : 1;
+ printf("Snap left: %s; snap right: %s; snap out of fullscreen: %s\n",left ? "yes":"no",right ? "yes":"no",fromFullscreen ? "yes":"no");
+ return entered && restored && left && right && fromFullscreen ? 0 : 1;
 }

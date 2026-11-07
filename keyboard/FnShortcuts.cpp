@@ -22,6 +22,7 @@
 #include <string.h>
 
 static const uint32 kAction = 'fnac';
+static const int32 kComma = 0x53, kPeriod = 0x54;
 static void Log(const char* text, status_t status = B_OK)
 {
  BPath path;
@@ -104,6 +105,43 @@ static status_t Set(BMessenger target, const char* name, const BRect* frame, int
 }
 class Actions : public BLooper {
  std::map<int32, SavedWindow> fSaved;
+ void Snap(bool right)
+ {
+  app_info app;
+  if (be_roster->GetActiveAppInfo(&app) != B_OK) return;
+  int32* tokens = NULL; int32 count = 0;
+  if (BPrivate::get_window_order(current_workspace(), &tokens, &count) != B_OK) return;
+  for (int32 i = 0; i < count; ++i) {
+   client_window_info* info = get_window_info(tokens[i]);
+   if (!info) continue;
+   if (info->team != app.team || info->is_mini || info->show_hide_level != 0
+       || info->feel != B_NORMAL_WINDOW_FEEL) { free(info); continue; }
+   BMessenger target;
+   BMessenger::Private(target).SetTo(info->team, info->client_port, info->client_token);
+   int32 token = info->server_token;
+   auto saved = fSaved.find(token);
+   if (saved != fSaved.end() && saved->second.target == target) {
+    status_t status = Set(target, "Look", NULL, saved->second.look);
+    if (status != B_OK) { Log("snap restore border", status); free(info); break; }
+    fSaved.erase(saved);
+    free(info); info = get_window_info(token);
+    if (!info) break;
+   }
+   BScreen screen;
+   if (!screen.IsValid()) { free(info); break; }
+   BRect frame = screen.Frame();
+   float split = frame.left + (int32)((frame.Width() + 1) / 2);
+   if (right) frame.left = split; else frame.right = split - 1;
+   // Fit the entire decorated window within its screen half.
+   frame.left += info->border_size; frame.right -= info->border_size;
+   frame.top += info->tab_height + info->border_size;
+   frame.bottom -= info->border_size;
+   free(info);
+   Log(right ? "snap right" : "snap left", Set(target, "Frame", &frame));
+   break;
+  }
+  free(tokens);
+ }
  void Fullscreen()
  {
   app_info app;
@@ -160,6 +198,8 @@ public:
    case B_F5_KEY: command = "/bin/screenmode -b -0.05"; break;
    case B_F6_KEY: command = "/bin/screenmode -b +0.05"; break;
    case B_F7_KEY: Fullscreen(); return;
+   case kComma: Snap(false); return;
+   case kPeriod: Snap(true); return;
    case B_F9_KEY: command = "/bin/open /boot/system/preferences"; break;
    case B_F11_KEY: command = "/bin/open /boot/system/apps/Terminal"; break;
    case B_F8_KEY: command = "/bin/open /boot/system/apps/Firefox/Firefox"; break;
@@ -174,7 +214,7 @@ public:
  }
 };
 class FnFilter : public BInputServerFilter {
- Actions* fActions; bool fReady; bool fHeld[12]; bool fPass[12]; uint32 fAltMask;
+ Actions* fActions; bool fReady; bool fHeld[128]; bool fPass[128]; uint32 fAltMask;
 public:
  FnFilter() : fActions(new Actions) {
   memset(fHeld, 0, sizeof(fHeld)); memset(fPass, 0, sizeof(fPass));
@@ -202,13 +242,18 @@ public:
   bool down = message->what == B_KEY_DOWN || message->what == B_UNMAPPED_KEY_DOWN;
   bool up = message->what == B_KEY_UP || message->what == B_UNMAPPED_KEY_UP;
   int32 key;
-  if ((!down && !up) || message->FindInt32("key", &key) != B_OK || key < B_F1_KEY || key > B_F12_KEY) return B_DISPATCH_MESSAGE;
-  int index = key - B_F1_KEY;
+  if ((!down && !up) || message->FindInt32("key", &key) != B_OK) return B_DISPATCH_MESSAGE;
+  bool functionKey = key >= B_F1_KEY && key <= B_F12_KEY;
+  if (!functionKey && key != kComma && key != kPeriod) return B_DISPATCH_MESSAGE;
+  int index = key;
   int32 modifiers = 0;
   message->FindInt32("modifiers", &modifiers);
   // Keep a whole press/repeat/release sequence on the same route even if Alt
   // changes while the function key is held, avoiding orphaned application events.
-  if (!fHeld[index]) fPass[index] = (modifiers & fAltMask) != 0;
+  if (!fHeld[index]) {
+   bool alt = (modifiers & fAltMask) != 0;
+   fPass[index] = functionKey ? alt : !alt;
+  }
   bool pass = fPass[index];
   bool repeatable = key == B_F2_KEY || key == B_F3_KEY || key == B_F5_KEY || key == B_F6_KEY;
   if (!pass && down && (!fHeld[index] || repeatable)) { BMessage action(kAction); action.AddInt32("key", key); fActions->PostMessage(&action); }
